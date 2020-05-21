@@ -237,15 +237,15 @@ library(tidyverse)
 library(vroom)
 
 # Import data
-meta <- vroom("../../data/tidy_data/pmcoa-meta-data_select.csv")
 pmcoa <- vroom("../../data/tidy_data/indicators_all.csv")
 
 # Import performance data
-load("../../../3_algorithm-validation/COI/Code/coi-eval-out_coi.RData")
-load("../../../3_algorithm-validation/Funding/Code/fund-eval-out_fund.RData")
-load("../../../3_algorithm-validation/Registration/Code/register-eval-out_reg.RData")
-load("../../../3_algorithm-validation/Data sharing/Code/data-code-eval_out-data.RData")
-load("../../../3_algorithm-validation/Data sharing/Code/data-code-eval_out-code.RData")
+data_output <- "../../../3_algorithm-validation/output/data_output"
+load(file.path(data_output, "coi-eval-out_coi.RData"))
+load(file.path(data_output, "fund-eval-out_fund.RData"))
+load(file.path(data_output, "register-eval-out_reg.RData"))
+load(file.path(data_output, "data-code-eval_out-data.RData"))
+load(file.path(data_output, "data-code-eval_out-code.RData"))
 ```
 
 ```{r, include=FALSE}
