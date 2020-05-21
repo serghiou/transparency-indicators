@@ -1,0 +1,739 @@
+---
+title: 'Indicators of transparency: Figures of analysis across PMCOA'
+author: "Stylianos Serghiou"
+date: '`r format(Sys.time(), "%d/%m/%Y")`'
+params:
+  frac:
+    label: "Fraction of total data to include in analysis"
+    value: 0.0005
+    input: slider
+    min: 0
+    max: 1
+    step: 0.0005
+output:
+  prettydoc::html_pretty:
+    # no code_folding available
+    theme: hpstr      # or: architect; https://github.com/yixuan/prettydoc
+    highlight: github # or: vignette
+    toc: TRUE         # no toc_float available
+    df_print: kable   # obviates %>% kable; does not replace styling though
+  tufte::tufte_handout: default
+  pdf_document:
+    highlight: tango
+    df_print: kable
+    latex_engine: pdflatex
+    keep_tex: yes
+  rmdformats::readthedown:
+    highlight: kate
+    df_print: kable    # obviates %>% kable; does not replace styling though
+    code_folding: hide # or: show; (comment out to not give option)
+  tufte::tufte_html: 
+    toc: TRUE
+  epuRate::epurate:
+    df_print: kable
+    toc: yes
+  html_document:
+    highlight: tango
+    theme: sandstone
+    df_print: kable
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+    css: "path_to_custom.css"
+header-includes:
+- \DeclareUnicodeCharacter{3B8}{~}
+- \DeclareUnicodeCharacter{3B1}{~}
+- \DeclareUnicodeCharacter{3B2}{~}
+- \DeclareUnicodeCharacter{223C}{~}
+- \DeclareUnicodeCharacter{2264}{~}
+- \DeclareUnicodeCharacter{2265}{~}
+- \DeclareUnicodeCharacter{2581}{~}
+- \DeclareUnicodeCharacter{2582}{~}
+- \DeclareUnicodeCharacter{2583}{~}
+- \DeclareUnicodeCharacter{2585}{~}
+- \DeclareUnicodeCharacter{2586}{~}
+- \DeclareUnicodeCharacter{2587}{~} 
+- \DeclareUnicodeCharacter{FB00}{~} 
+- \usepackage{graphicx}
+editor_options: 
+  chunk_output_type: inline
+---
+
+<style>
+p {
+
+text-align: justify;
+text-justify: interword;
+padding: 0 0 0.5em 0
+
+}
+</style>
+
+```{r setup, include=FALSE}
+# Load packages
+library(knitr)
+library(rmdformats)
+library(kableExtra)
+library(ggplot2)
+library(magrittr)
+
+
+
+######### knitr
+
+# Define chunk options
+opts_chunk$set(
+  echo = T,
+  cache = F,  # if TRUE, no need to rerun chunks
+  # cache.lazy = TRUE,  # use with big objects (>1 GB)
+  cache.comments = F,  # do not rebuild if comments change
+  tidy = F,  # can play with this
+  warning = F, 
+  message = F,
+  comment = NA,
+  fig.align = "center",
+  fig.width = 7,
+  fig.path = "Figs/",  # export all figures to dir Figs
+  linewidth = 91,
+  width = 75
+)
+
+
+# Initiatialize hook
+hook_output = knit_hooks$get("output")
+
+
+# Hook to wrap output text when it exceeds 'n' using linewidth
+knit_hooks$set(output = function(x, options) {
+  
+  if (!is.null(n <- options$linewidth)) {
+    x = knitr:::split_lines(x)
+    
+    # wrap lines wider than 'n' 
+    if (any(nchar(x) > n)) 
+      x <- strwrap(x, width = n)
+      x <- paste(x, collapse = "\n")
+  }
+  hook_output(x, options)
+})
+
+
+# Times a chunk and prints the time it took to run it under the chunk
+# To time a chunk, include in the chunk options: {r my_chunk, timeit=TRUE}
+knitr::knit_hooks$set(timeit = local({
+  now = NULL
+  function(before, options) {
+    if (before) {
+      now <<- Sys.time()
+    } else {
+      res = difftime(Sys.time(), now)
+      now <<- NULL
+      # use options$label if you want the chunk label as well
+      paste('Time for this code chunk:', as.character(res))
+    }
+  }})
+)
+
+
+# For more knitr options visit: https://yihui.name/knitr/options/
+# and his github page: https://github.com/yihui/knitr-examples
+
+
+
+######### kableExtra
+
+options(knitr.kable.NA = ''  # replace NAs in tables with blank
+        , digits = 3)          # round digits (doesn't work without this here!)
+
+## Example use
+# data.frame(x = c(1,2,3), y = c(4,5,6), z = c(7,8,9)) %>% 
+#   kable(booktabs = T) %>% kable_styling()
+
+# Function to simplify table styling
+sable <- function(tab, escape = T, full_width = F, drop = F, font_size = 12) {
+  if (drop) {
+    tab %>%
+      kable(escape = escape, booktabs = T) %>%
+      collapse_rows(valign = "top") %>% 
+      kable_styling("striped", 
+                    position = "center", 
+                    full_width = full_width, 
+                    font_size = font_size)
+  } else {
+    tab %>%
+      kable(escape = escape, booktabs = T) %>%
+      kable_styling("striped", 
+                    position = "center", 
+                    full_width = full_width,
+                    font_size = font_size)
+  }
+}
+
+## Guidelines
+# No longer need to define options(knitr.table.format = "html"). It is now automatically done as soon as you load kableExtra
+# No need to run kable() every time - done automatically as soon as you load kableExtra
+# Loading kableExtra nullifies any styling applied by df_table: kable in the preamble - if you are content with standard formatting, DO NOT load kableExtra
+
+
+
+#########  ggplot2
+
+# Set up preferred theme in ggplot2
+my_theme <- 
+  # this and theme_minimal() are my favorite
+  theme_light() +  
+  theme(
+    text = element_text(color = "grey20"),
+    title = element_text(face = "bold"),
+    legend.key = element_rect(colour = NA, fill = NA),  # Avoid borders
+    panel.border = element_blank(),
+    axis.ticks = element_blank()
+  )
+
+# Make the above theme the default theme
+original_theme <- theme_set(my_theme)
+
+# Use ggsave to save plots after plotting - this reduces size dramatically
+
+
+
+######### Live preview
+
+# Preview the HTML without having to re-knit
+# https://www.r-bloggers.com/create-r-markdown-reports-and-presentations-even-better-with-these-3-practical-tips/amp/
+
+# xaringan::infinite_moon_reader()
+
+
+
+
+######### Tabbed sections
+
+# You can organize content using tabs by applying the .tabset class attribute to headers within a document. This will cause all sub-headers of the header with the .tabset attribute to appear within tabs rather than as standalone sections. For example:
+
+## Quarterly Results {.tabset}
+
+### By Product
+
+
+
+######### Update package
+
+# To update the package use:
+# Replace ~/serghiouTemplates/inst/rmarkdown/templates/report/skeleton.rmd
+# library(devtools); setwd("/Users/Stelios/"); install("serghiouTemplates")
+```
+
+
+# Setup {.tabset}
+
+```{r setup_notrun}
+# Load packages
+library(cowplot)
+library(magrittr)
+library(readxl)
+library(tidyverse)
+library(vroom)
+
+# Import data
+meta <- vroom("../../data/tidy_data/pmcoa-meta-data_select.csv")
+pmcoa <- vroom("../../data/tidy_data/indicators_all.csv")
+```
+
+```{r, include=FALSE}
+if (params$frac < 1) {
+  message(paste0("Using ", params$frac * 100, "% of dataset."))
+  pmcoa %<>% sample_frac(size = params$frac, replace = F)
+} else {
+  message("Using full dataset.")
+}
+```
+
+
+Variable groupings and definitions.
+
+```{r}
+num_vars <- syms(c(
+  "score",
+  "year",
+  "jif",
+  "eigenfactor_score",
+  "n_cite"
+))
+
+num_vars_meta <- syms(c(
+  "n_auth",
+  "n_affiliation",
+  "n_ref",
+  "n_fig",
+  "n_table"
+))
+
+num_vars_dic <- c(
+  "Indicator count" = "score",
+  "Year" = "year",
+  "Journal Impact Factor (WOS)" = "jif",
+  "Eigenfactor (WOS)" = "eigenfactor_score",
+  "Citation count (OCC)" = "n_cite"
+)
+
+num_vars_meta_dic <- c(
+  "Number of authors" = "n_auth",
+  "Number of affiliations" = "n_affiliation",
+  "Number of references" = "n_ref",
+  "Number of figures" = "n_fig",
+  "Number of tables" = "n_table"
+)
+
+
+factor_vars <- syms(c(
+  "journal",
+  "publisher",
+  "affiliation_country",
+  "type",
+  "field",
+  "is_art"
+))
+
+factor_vars_meta <- syms(c(
+  "is_supplement"
+))
+
+factor_vars_dic <- c(
+  "Journal" = "journal",
+  "Publisher" = "publisher",
+  "Country of affiliation" = "affiliation_country",
+  "Type of publication" = "type",
+  "Field of science (SciTech)" = "field",
+  "Research article (OCC)" = "is_art"
+)
+
+factor_vars_meta_dic <- c(
+  "Has supplement" = "is_supplement"
+)
+
+
+indicator_vars <- syms(c(
+  "is_data_pred",
+  "is_code_pred",
+  "is_coi_pred",
+  "is_fund_pred",
+  "is_register_pred"
+))
+
+indicator_vars_dic <- c(
+  "Data sharing" = "is_data_pred",
+  "Code sharing" = "is_code_pred",
+  "COI disclosure" = "is_coi_pred",
+  "Funding disclosure" = "is_fund_pred",
+  "Protocol registration" = "is_register_pred"
+)
+
+
+filter_vars <- syms(c(
+  "year"
+))
+
+
+dic <- c(
+  score = "Indicator count",
+  year = "Year",
+  jif = "Journal Impact Factor (WOS)",
+  eigenfactor_score = "Eigenfactor (WOS)",
+  n_cite = "Citation count (OCC)",
+  n_auth = "Number of authors",
+  n_affiliation = "Number of affiliations",
+  n_ref = "Number of references",
+  n_fig = "Number of figures",
+  n_table = "Number of tables",
+  journal = "Journal",
+  publisher = "Publisher",
+  affiliation_country = "Country of affiliation",
+  type = "Type of publication",
+  field = "Field of science (SciTech)",
+  is_art = "Research article (OCC)",
+  is_supplement = "Has supplement",
+  is_data_pred = "Data sharing",
+  is_code_pred = "Code sharing",
+  is_coi_pred = "COI disclosure",
+  is_fund_pred = "Funding disclosure",
+  is_register_pred = "Protocol registration"
+)
+```
+
+
+Change those that report that the study was not registered to false. The wordy syntax is required to avoid the problem of NAs.
+
+```{r}
+pmcoa %<>% 
+  mutate(is_register_pred = case_when(
+      not_registered_1 ~ F, 
+      TRUE ~ is_register_pred
+  ))
+```
+
+```{r}
+pmc <- 
+  pmcoa %>% 
+  filter(is_success) %>% 
+  select(
+    pmcid_pmc, 
+    !!! filter_vars, 
+    !!! indicator_vars, 
+    !!! num_vars, 
+    !!! factor_vars
+  )
+```
+
+
+***
+
+
+# Fig 3: Indicators by PMC
+
+```{r}
+indicator_counts_by_pmc <- 
+  pmcoa %>% 
+  filter(is_success) %>% 
+  select(ends_with("_pred"), starts_with("is_coi"), starts_with("is_fund")) %>%
+  gather(Indicator, Value, !!!indicator_vars) %>% 
+  mutate(Value = if_else(Value, "Yes", "No")) %>% 
+  mutate(is_pmc = case_when(
+    Indicator == "is_coi_pred" ~ is_coi_pmc_fn,
+    Indicator == "is_fund_pred" ~ is_fund_pmc_group | is_fund_pmc_anysource
+  )) %>% 
+  mutate(is_pmc = if_else(is.na(is_pmc), F, is_pmc)) %>% 
+  mutate(Indicator = recode(Indicator, !!!dic)) %>%
+  group_by(Indicator) %>% 
+  mutate(N = n()) %>% 
+  add_count(Value) %>% 
+  mutate(p = scales::percent(n /N)) %>% 
+  ungroup() 
+
+indicator_counts_by_pmc %>% 
+  mutate(Indicator = fct_relevel(Indicator, "Data sharing")) %>% 
+  ggplot(aes(x = Value, fill = Value, color = Value)) +
+  geom_bar(aes(alpha = is_pmc)) + 
+  geom_text(
+    aes(y = ..count.., label = p), 
+    stat = 'count', 
+    size = 3, 
+    vjust = -0.5
+  ) + 
+  scale_alpha_manual(values = c(0.7, 0.95)) +
+  scale_y_continuous(
+    breaks = seq(0, 3E6, 1E6), 
+    labels = seq(0, 3, 1),
+    expand = expansion(mult = c(0, 0.1))
+  ) +
+  facet_wrap(~ Indicator) +
+  labs(x = NULL, y = "Publications (in millions)\n") +
+  theme(
+    legend.position = "none", 
+    panel.grid.major.x = element_blank()
+  )
+
+ggsave("indicator-figs_fig-3_indicator_by_pmc.jpg")
+```
+
+
+***
+
+
+# Fig 4: Indicators by year and country
+
+
+## Year
+
+```{r, fig.width=11, fig.height=7}
+p1 <- 
+  pmc %>% 
+  select(year, !!!indicator_vars) %>% 
+  filter(year >= 1990) %>% 
+  gather("key", "value", -year) %>% 
+  mutate(key = recode(key, !!!dic)) %>% 
+  count(year, key, value) %>% 
+  group_by(year, key) %>% 
+  mutate(p = n / sum(n)) %>% 
+  filter(value) %>% 
+  ungroup() %>% 
+  mutate(key = fct_relevel(key, "Data sharing")) %>% 
+  ggplot(aes(x = year, y = p, color = key)) +
+  geom_line(size = 0.75) +
+  scale_x_continuous(breaks = seq(1990, 2020, 5), limits = c(1990, 2020)) +
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  scale_color_discrete(name = NULL) +
+  labs(y = "Publications (%)\n", x = "\nYear") +
+  theme(
+    panel.grid.minor = element_blank(), 
+    legend.position = c(0.50, 1),
+    legend.direction = "horizontal"
+  )
+```
+
+
+## Country
+
+Create cohort.
+
+```{r}
+pmc_country_1990 <- 
+  pmc %>% 
+  select(pmcid_pmc, year, affiliation_country, !!!indicator_vars) %>% 
+  filter(year > 1989) %>% 
+  drop_na(affiliation_country) %>% 
+  tidyr::separate_rows(affiliation_country, sep = "; ") %>% 
+  group_by(pmcid_pmc) %>% 
+  distinct(affiliation_country, .keep_all = T) %>% 
+  ungroup() %>% 
+  add_count(affiliation_country) 
+
+# Get map
+world_map <- ggplot2::map_data('world') %>% as_tibble
+
+# Update China to read Hong Kong whenever it refers to Hong Kong
+world_map$region[world_map$subregion == "Hong Kong"] <- "Hong Kong"
+
+country_n <- 
+  pmc_country_1990 %>% 
+  group_by(affiliation_country, n) %>% 
+  summarise_at(vars(!!!indicator_vars), mean) %>% 
+  right_join(world_map, by = c('affiliation_country' = 'region')) %>% 
+  rename(region = affiliation_country)
+```
+
+
+Plot.
+
+```{r, fig.width=12, fig.height=12}
+p2 <- 
+  country_n %>%
+  filter(region != "Antarctica") %>% 
+  gather(Indicator, vals, !!!indicator_vars) %>% 
+  mutate(Indicator = recode(Indicator, !!!dic)) %>% 
+  mutate(Indicator = fct_relevel(Indicator, "Data sharing")) %>% 
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = vals)) + 
+  facet_wrap(~ Indicator, scales = "free", nrow = 3) +
+  theme(
+    text = element_text(color = "grey20"),
+    plot.subtitle = element_text(size = 14),
+    axis.ticks = element_blank(),
+    axis.text.x  = element_blank(),
+    axis.text.y  = element_blank(),
+    panel.grid = element_blank(),
+    panel.background  = element_rect(fill = "white"),
+    plot.background   = element_rect(fill = "white"),
+    legend.position   = c(0.78, 0.18),
+    legend.background = element_blank(),
+    legend.key = element_blank()
+  ) +
+  labs(x = NULL, y = NULL) +
+  scale_fill_viridis_c(labels = scales::percent, name = "Publications (%)\n")
+```
+
+
+## Join
+
+```{r}
+cowplot::plot_grid(
+  p1, p2,
+  nrow = 2, 
+  labels = "auto",
+  rel_heights = c(2, 3),
+  scale = 0.9
+)
+
+ggsave(
+  "indicator-figs_fig-4_indicator-by-year-country.jpg", 
+  height = 10, 
+  width = 9
+)
+```
+
+
+***
+
+
+# Fig 5: Indicator by field
+
+Table.
+
+```{r}
+field_table <- 
+  pmc %>% 
+  select(year, field, !!!indicator_vars) %>% 
+  drop_na(field) %>% 
+  filter(year >= 1990) %>%
+  rename(!!!indicator_vars_dic) %>% 
+  mutate(field = fct_infreq(field)) %>% 
+  gather(indicator, value, -year, -field) %>% 
+  group_by(field, indicator) %>% 
+  summarise_at(vars(value), list(n = sum, p = mean)) %>% 
+  mutate(p_text = sprintf("%s (%.1f%%)", n, p * 100)) %>% 
+  ungroup()
+
+```
+
+
+Plot.
+
+```{r}
+colfunc <- colorRampPalette(c("red", "yellow", "yellow", "green"))
+
+field_table %>% 
+  mutate(field = fct_rev(field)) %>% 
+  mutate(indicator = fct_relevel(indicator, "Data sharing")) %>% 
+  ggplot(aes(x = indicator, y = field, fill = p, label = p_text)) +
+  geom_tile(aes(width = 0.99, height = 0.99)) +
+  scale_fill_gradientn(colours = alpha(colfunc(10), 0.7)) +
+  geom_text(size = 3) +
+  scale_x_discrete(position = "top", expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0)) +
+  labs(x = NULL, y = NULL) +
+  theme(
+    axis.line = element_blank(),
+    legend.position = "none",
+    panel.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(size = 0.1, fill = NA),
+    axis.ticks = element_blank(),
+    plot.margin = unit(c(0, 0, 0, 0), "cm")
+  )
+
+ggsave("indicator-figs_fig-5_field-by-indicator.jpg", width = 8, height = 6)
+```
+
+
+***
+
+
+# Fig 6: Indicatory by journal and publisher
+
+## Journal
+
+Table - since 1990, ≥100 publications.
+
+```{r}
+indicator_by_journal <- 
+  pmc %>% 
+  select(year, journal, !!!indicator_vars) %>% 
+  filter(year >= 1990) %>%
+  add_count(journal, name = "n_publications") %>% 
+  filter(n_publications > 100) %>% 
+  rename(!!!indicator_vars_dic) %>% 
+  gather(indicator, value, -year, -journal, -n_publications) %>% 
+  group_by(journal, indicator) %>% 
+  summarise_at(vars(value), list(n = sum, p = mean))
+```
+
+
+Plot.
+
+```{r}
+p1 <- 
+  indicator_by_journal %>% 
+  mutate(indicator = fct_relevel(indicator, "Data sharing")) %>% 
+  ggplot(aes(x = p, color = indicator, fill = indicator)) + 
+  stat_ecdf(aes(y = 1 - ..y..), geom = "area", alpha = 0.75, pad = F) +
+  scale_y_continuous(
+    labels = scales::percent,
+    limits = c(0, 1),
+    name = "Journals (%)\n"
+  ) +
+  scale_x_continuous(
+    labels = scales::percent, 
+    name = "\nPublications with indicator (%)"
+  ) +
+  facet_wrap(~ indicator) +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(1, "lines")
+  )
+```
+
+
+## Publisher
+
+Table - since 1990, ≥100 publications.
+
+```{r}
+indicator_by_publisher <- 
+  pmc %>% 
+  select(year, publisher, !!!indicator_vars) %>% 
+  filter(year >= 1990) %>%
+  add_count(publisher, name = "n_publications") %>% 
+  filter(n_publications > 100) %>% 
+  rename(!!!indicator_vars_dic) %>% 
+  gather(indicator, value, -year, -publisher, -n_publications) %>% 
+  group_by(publisher, indicator) %>% 
+  summarise_at(vars(value), list(n = sum, p = mean))
+```
+
+
+Plot.
+
+```{r}
+p2 <- 
+  indicator_by_publisher %>% 
+  mutate(indicator = fct_relevel(indicator, "Data sharing")) %>% 
+  ggplot(aes(x = p, color = indicator, fill = indicator)) + 
+  stat_ecdf(aes(y = 1 - ..y..), geom = "area", alpha = 0.75, pad = F) +
+  scale_y_continuous(
+    labels = scales::percent,
+    limits = c(0, 1),
+    name = "Publishers (%)\n"
+  ) +
+  scale_x_continuous(
+    labels = scales::percent, 
+    name = "\nPublications with indicator (%)"
+  ) +
+  facet_wrap(~ indicator) +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(1, "lines")
+  )
+```
+
+
+## Join
+
+Table - since 1990, ≥100 publications.
+
+```{r}
+cowplot::plot_grid(
+  p1, p2,
+  nrow = 2, 
+  labels = "auto",
+  rel_heights = c(1, 1),
+  scale = 0.9
+)
+
+ggsave(
+  "indicator-figs_fig-6_indicator-by-journal-publisher.jpg", 
+  width = 10,
+  height = 12
+)
+```
+
+
+***
+
+
+# Documentation {.tabset}
+
+## Session Info
+
+```{r session_info, echo=FALSE}
+print(sessionInfo(), locale = F)
+```
+
+
+## References
+
+```{r refs, echo=FALSE}
+(.packages()) %>% sort %>% lapply(citation) %>% lapply(c) %>% unique
+```
