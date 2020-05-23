@@ -1,0 +1,791 @@
+---
+title: 'Indicators of transparency: Descriptive statistics'
+author: "Stylianos Serghiou"
+date: '`r format(Sys.time(), "%d/%m/%Y")`'
+output:
+  prettydoc::html_pretty:
+    # no code_folding available
+    theme: hpstr      # or: architect; https://github.com/yixuan/prettydoc
+    highlight: github # or: vignette
+    toc: TRUE         # no toc_float available
+    df_print: kable   # obviates %>% kable; does not replace styling though
+  tufte::tufte_handout: default
+  pdf_document:
+    highlight: tango
+    df_print: kable
+    latex_engine: pdflatex
+    keep_tex: yes
+  rmdformats::readthedown:
+    highlight: kate
+    df_print: kable    # obviates %>% kable; does not replace styling though
+    code_folding: hide # or: show; (comment out to not give option)
+  tufte::tufte_html: 
+    toc: TRUE
+  epuRate::epurate:
+    df_print: kable
+    toc: yes
+  html_document:
+    highlight: tango
+    theme: sandstone
+    df_print: kable
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+    css: "path_to_custom.css"
+header-includes:
+- \DeclareUnicodeCharacter{3B8}{~}
+- \DeclareUnicodeCharacter{3B1}{~}
+- \DeclareUnicodeCharacter{3B2}{~}
+- \DeclareUnicodeCharacter{223C}{~}
+- \DeclareUnicodeCharacter{2264}{~}
+- \DeclareUnicodeCharacter{2265}{~}
+- \DeclareUnicodeCharacter{2581}{~}
+- \DeclareUnicodeCharacter{2582}{~}
+- \DeclareUnicodeCharacter{2583}{~}
+- \DeclareUnicodeCharacter{2585}{~}
+- \DeclareUnicodeCharacter{2586}{~}
+- \DeclareUnicodeCharacter{2587}{~} 
+- \DeclareUnicodeCharacter{FB00}{~} 
+- \usepackage{graphicx}
+editor_options: 
+  chunk_output_type: inline
+---
+
+<style>
+p {
+
+text-align: justify;
+text-justify: interword;
+padding: 0 0 0.5em 0
+
+}
+</style>
+
+```{r knitr, echo=FALSE}
+# Load packages
+library(knitr)
+library(rmdformats)
+library(kableExtra)
+library(ggplot2)
+library(magrittr)
+
+
+
+######### knitr
+
+# Define chunk options
+opts_chunk$set(echo = TRUE
+               , cache     = FALSE      # if TRUE, no need to rerun chunks
+               #, cache.lazy = TRUE     # use when have big objects (>1 GB)
+               , cache.comments = FALSE # do not rebuild if comments change
+               , tidy      = FALSE      # can play with this
+               , warning   = FALSE 
+               , message   = FALSE
+               , comment   = NA
+               , fig.align = "center"
+               , fig.width = 7
+               # , fig.path  = "Figs/" # export all figures to dir Figs
+               , linewidth = 91)
+
+opts_knit$set(width = 75)
+
+# Initiatialize hook
+hook_output = knit_hooks$get("output")
+
+# Hook to wrap output text when it exceeds 'n' using linewidth
+knit_hooks$set(output = function(x, options) {
+  
+  if (!is.null(n <- options$linewidth)) {
+    x = knitr:::split_lines(x)
+    
+    # wrap lines wider than 'n' 
+    if (any(nchar(x) > n)) 
+      x <- strwrap(x, width = n)
+      x <- paste(x, collapse = "\n")
+  }
+  hook_output(x, options)
+})
+
+# For more knitr options visit: https://yihui.name/knitr/options/
+# and his github page: https://github.com/yihui/knitr-examples
+
+
+
+######### kableExtra
+
+options(knitr.kable.NA = ''  # replace NAs in tables with blank
+        , digits = 3)          # round digits (doesn't work without this here!)
+
+## Example use
+# data.frame(x = c(1,2,3), y = c(4,5,6), z = c(7,8,9)) %>% 
+#   kable(booktabs = T) %>% kable_styling()
+
+# Function to simplify table styling
+sable <- function(tab, escape = T, full_width = F, drop = F, font_size = 12) {
+  if (drop) {
+    tab %>%
+      kable(escape = escape, booktabs = T) %>%
+      collapse_rows(valign = "top") %>% 
+      kable_styling("striped", 
+                    position = "center", 
+                    full_width = full_width, 
+                    font_size = font_size)
+  } else {
+    tab %>%
+      kable(escape = escape, booktabs = T) %>%
+      kable_styling("striped", 
+                    position = "center", 
+                    full_width = full_width,
+                    font_size = font_size)
+  }
+}
+
+## Guidelines
+# No longer need to define options(knitr.table.format = "html"). It is now automatically done as soon as you load kableExtra
+# No need to run kable() every time - done automatically as soon as you load kableExtra
+# Loading kableExtra nullifies any styling applied by df_table: kable in the preamble - if you are content with standard formatting, DO NOT load kableExtra
+
+
+
+#########  ggplot2
+
+# Set up preferred theme in ggplot2
+my_theme <- 
+  # this and theme_minimal() are my favorite
+  theme_light() +  
+  theme(
+    text = element_text(color = "grey20"),
+    title = element_text(face = "bold"),
+    legend.key = element_rect(colour = NA, fill = NA),  # Avoid borders
+    panel.border = element_blank(), 
+    axis.ticks = element_blank(),
+    axis.title = element_text(face = "bold")
+  )
+
+# Make the above theme the default theme
+original_theme <- theme_set(my_theme)
+
+# Use ggsave to save plots after plotting - this reduces size dramatically
+
+
+
+######### Live preview
+
+# Preview the HTML without having to re-knit
+# https://www.r-bloggers.com/create-r-markdown-reports-and-presentations-even-better-with-these-3-practical-tips/amp/
+
+# xaringan::infinite_moon_reader()
+
+
+
+
+######### Tabbed sections
+
+# You can organize content using tabs by applying the .tabset class attribute to headers within a document. This will cause all sub-headers of the header with the .tabset attribute to appear within tabs rather than as standalone sections. For example:
+
+## Quarterly Results {.tabset}
+
+### By Product
+
+
+
+######### Update package
+
+# To update the package use:
+# Replace ~/serghiouTemplates/inst/rmarkdown/templates/report/skeleton.rmd
+# library(devtools); setwd("/Users/Stelios/"); install("serghiouTemplates")
+```
+
+
+# Setup {.tabset}
+
+```{r setup_1}
+# Load packages
+library(cowplot)
+library(magrittr)
+library(readxl)
+library(tidyverse)
+
+
+# Paths
+fig_output <- "../../output/figure_output"
+
+
+# Import data
+articles <- read_csv("../../data/tidy_data/manual-indicators.csv")
+altmetric <- read_csv("../../data/external_data/altmetric-data.csv")
+impact <- read_csv("../../data/external_data/impact-factor.csv")
+pubmed <- read_xlsx("../../data/external_data/pubmed-info.xlsx", na = "NA")
+fields <- read_xlsx("../../data/external_data/stelios_pmid_info.xlsx", 1)
+cites <- read_xlsx("../../data/external_data/stelios_pmid_info.xlsx", 3)
+```
+
+```{r}
+# Define variable groups
+indicator_vars <- syms(c(
+  "isNovel",
+  "isReplication",
+  "FundingType",
+  "hasConflictFT",
+  "hasDataNoteFT",
+  "hasProtocolFT",
+  "hasCode"
+))
+
+indicator_vars_binary <- syms(c(
+  "Novel",
+  "Replication",
+  "Funding",
+  "COI",
+  "Data",
+  "Protocol",
+  "Code"
+))
+
+indicator_vars_pubmed <- syms(c(
+  "isReplicationNoveltyAbstract",
+  "hasFundingPubMed",
+  "hasConflictPubMed",
+  "hasDataNoteAbstract",
+  "hasProtRegInfoAbstractPub",
+  "hasCodeAbstract"
+))
+
+indicator_vars_dic <- c(
+  isNovel  = "Novelty",
+  isReplication = "Replication",
+  isReplicationNoveltyAbstract = "Novelty or Replication (PubMed)",
+  FundingType = "Funding disclosure",
+  hasFundingPubMed = "Funding disclosure (PubMed)",
+  hasConflictFT = "COI disclosure",
+  hasConflictPubMed = "COI disclosure (PubMed)",
+  hasDataNoteFT = "Data sharing",
+  hasDataNoteAbstract = "Data sharing (PubMed)",
+  hasProtocolFT = "Protocol registration",
+  hasProtRegInfoAbstractPub = "Protocol registration (PubMed)",
+  hasCode = "Code sharing",
+  Data = "Data sharing",
+  Code = "Code sharing",
+  COI = "COI disclosure",
+  Funding = "Funding disclosure",
+  Protocol = "Protocol registration",
+  Novel = "Novelty"
+)
+
+indicators_simplified_dic <- c(
+  isNovel  = "Novel or Replication",
+  isReplication = "Novel or Replication",
+  isReplicationNovelty = "Novel or Replication",
+  isReplicationNoveltyAbstract = "Novel or Replication",
+  FundingType = "Funding disclosure",
+  hasFundingPubMed = "Funding disclosure",
+  hasConflictFT = "COI disclosure",
+  hasConflictPubMed = "COI disclosure",
+  hasDataNoteFT = "Data sharing",
+  hasDataNoteAbstract = "Data sharing",
+  hasProtocolFT = "Protocol registration",
+  hasProtRegInfoAbstractPub = "Protocol registration",
+  hasCode = "Code sharing",
+  hasCodeAbstract = "Code sharing"
+)
+
+
+factor_vars <- syms(c(
+  "isBench",
+  "isEpi",
+  "isOther",
+  "isRCT",
+  "Year",
+  "is_PMC",
+  "field"
+))
+
+factor_vars_dic <- c(
+  field = "Field of Science (SciTech)",
+  is_PMC = "On PMC",
+  isBench = "Basic sciences",
+  isEpi = "Health sciences",
+  isOther = "Research article",
+  isRCT = "Clinical Trial"
+)
+
+
+num_vars <- syms(c(
+  "aas_score",
+  "n_cites",
+  "jif",
+  "eigenfactor_score",
+  "n_authors",
+  "n_affiliations",
+  "n_mesh"
+))
+
+num_vars_dic <- c(
+  aas_score = "Altmetric Attention Score", 
+  n_cites = "Citation count (OCC)", 
+  eigenfactor_score = "Eigenfactor (WOS)",
+  jif = "Journal Impact Factor (JIF)",
+  n_affiliations = "Number of affiliations",
+  n_authors = "Number of authors",
+  n_mesh = "Number of MeSH terms"
+)
+
+
+coi_dic <- c(
+  `0` = "No", 
+  `1` = "Yes (conflicts)", 
+  `2` = "Yes (no conflicts)"
+)
+
+coi_binary_dic <- c(
+  `0` = "No", 
+  `1` = "Yes", 
+  `2` = "Yes",
+  `99` = "N/A"
+)
+
+
+fund_dic <- c(
+  `0` = "No", 
+  `1` = "No funding",
+  `2` = "Public", 
+  `3` = "Private", 
+  `4` = "NGO", 
+  `5` = "Public + Private", 
+  `6` = "Public + NGO", 
+  `7` = "NGO + Private", 
+  `8` = "Public + Private + NGO")
+
+fund_binary_dic <- c(
+  `0` = "No", 
+  `1` = "Yes", 
+  `2` = "Yes", 
+  `3` = "Yes", 
+  `4` = "Yes", 
+  `5` = "Yes", 
+  `6` = "Yes", 
+  `7` = "Yes", 
+  `8` = "Yes"
+)
+```
+
+
+***
+
+
+# Introduction
+
+## Inputs
+
+* Citation data - CrossRef  - 30 May, 2019
+* Altmetric data - Altmetric - 30 May, 2019
+* Impact factor data - Web of Science - 2019 JIF
+
+
+***
+
+
+# Prepare data
+
+```{r}
+glimpse(articles)
+glimpse(altmetric)
+glimpse(cites)
+glimpse(impact)
+glimpse(pubmed)
+```
+
+
+## Articles
+
+Change articles before meta, because meta is created on the basis of articles.
+
+Change protocol to align with our own definition of protocol.
+
+```{r}
+articles %<>% 
+  mutate(has_suppl_note = str_detect(hasProtocol_Notes, "Suppl")) %>% 
+  mutate(hasProtocolFT = case_when(
+    is.na(has_suppl_note) ~ hasProtocolFT,
+    has_suppl_note ~ 0,
+    !has_suppl_note ~ hasProtocolFT
+  )) %>% 
+  select(-has_suppl_note)
+```
+
+
+Convert `isResearch` into logical.
+
+```{r}
+articles %<>% 
+  mutate(isResearch = isResearch == "Yes") %>% 
+  mutate(isEnglish = isEnglish == "Yes")
+```
+
+
+Create indicators for articles.
+
+```{r}
+articles %<>% 
+  mutate(
+    COI = hasConflictFT != 0,
+    Funding = FundingType != 0,
+    Data = hasDataNoteFT != 0,
+    Code = hasCode != 0,
+    Protocol = hasProtocolFT != 0,
+    Novel = isNovel != 0,
+    Replication = isReplication != 0
+  )
+```
+
+
+
+## Meta
+
+Retain only articles from which indicators were extracted and remove country because this is misleading (this is the country of the publisher).
+
+```{r pubmed}
+pubmed %<>% 
+  slice(1:520) %>% 
+  select(-Country, -Year) %>% 
+  rename(Journal_abbrv = Journal)
+```
+
+
+Merge with information provided by other services.
+
+```{r altmetric}
+meta <- 
+  altmetric %>% 
+  select(
+    pmid, 
+    type, 
+    is_oa, 
+    aas_score = score,
+    starts_with("cited_by_"), 
+    starts_with("subjects"), 
+    starts_with("scopus_subjects")
+  ) %>% 
+  unite(col = "subjects", starts_with("subjects"), sep = "; ", na.rm = T) %>% 
+  unite(col = "subjects_scopus", starts_with("sco"), sep = "; ", na.rm = T) %>%
+  mutate_at(vars(subjects, subjects_scopus), na_if, "") %>% 
+  mutate_at(vars(pmid), as.character) %>% 
+  right_join(pubmed, by = c("pmid" = "PMID")) %>% 
+  mutate(aas_score = replace_na(aas_score, 0)) %>% 
+  select(Sample_ID, pmid, Title:n_citation, everything())
+```
+
+```{r cites}
+cites %<>% count(pmid, name = "n_cites")
+
+meta <- 
+  cites %>%
+  mutate(pmid = as.character(pmid)) %>% 
+  select(pmid, n_cites) %>% 
+  right_join(meta) %>% 
+  select(-n_cites, n_cites)
+```
+
+```{r}
+meta <- 
+  fields %>% 
+  rename(field = pm_field) %>% 
+  mutate(pmid = as.character(pmid)) %>% 
+  right_join(meta) %>% 
+  select(-field, field)
+```
+
+
+```{r jif}
+meta <- 
+  impact %>% 
+  select(starts_with("ISSN"), jif, eigenfactor_score) %>% 
+  gather("ISSN_type", "ISSN", starts_with("ISSN")) %>% 
+  distinct(jif, eigenfactor_score, ISSN) %>% 
+  right_join(meta, ) %>% 
+  select(-(jif:ISSN), everything(), ISSN, jif, eigenfactor_score)
+```
+
+Ten of the journals with no JIF match were manually inspected to confirm that no journal with a similar title existed in Web of Science (in addition to previous manual searches in compiling the initial database). All 10 did not exist.
+
+```{r articles}
+meta <- 
+  articles %>% 
+  mutate_at(vars(Sample_ID), as.numeric) %>% 
+  mutate(hasCodeAbstract = "No") %>% 
+  select(
+    Sample_ID, 
+    PMCID, 
+    Year:isCostEffect, 
+    isEnglish, 
+    isResearch,
+    !!! indicator_vars,
+    !!!indicator_vars_pubmed
+  ) %>% 
+  right_join(meta, by = "Sample_ID")
+```
+
+
+Create indicators.
+
+```{r}
+meta %<>% 
+  mutate(
+    COI = hasConflictFT != 0,
+    Funding = FundingType != 0,
+    Data = hasDataNoteFT != 0,
+    Code = hasCode != 0,
+    Protocol = hasProtocolFT != 0,
+    Novel = isNovel != 0,
+    Replication = isReplication != 0
+  )
+```
+
+
+Create features.
+
+```{r}
+meta %<>% 
+  mutate(
+    is_PMC = !is.na(PMCID),
+    n_authors = str_count(Author, ","),
+    n_affiliations = str_count(Affiliation, ";"),
+    n_mesh = str_count(MeSH, ";"),
+    open_score = Funding + COI + Data + Protocol + Code
+  )
+```
+
+
+***
+
+
+# Fig 1: Indicators
+
+
+## Indicator prevalence
+
+Any articles (COI/Funding) and research articles (rest).
+
+```{r}
+# Plot
+articles %>% 
+  filter(Reviewer != "JW" & isEnglish) %>% 
+  select(isResearch, !!! indicator_vars_binary) %>%
+  mutate_at(vars(-COI, -Funding, -isResearch), ~ if_else(isResearch, ., NA)) %>%
+  gather(key, value, -isResearch) %>% 
+  drop_na(value) %>% 
+  mutate(key = fct_relevel(key, "Data")) %>% 
+  mutate(key = fct_relevel(key, "Protocol", after = 4)) %>% 
+  mutate(key = recode(key, !!! indicator_vars_dic)) %>% 
+  ggplot(aes(x = value, fill = key, color = key)) +
+  geom_bar(alpha = 0.75) +
+  geom_text(
+    aes(
+      y = stat(count), 
+      label = scales::percent(stat(prop), accuracy = 0.1), 
+      group = key
+    ), 
+    stat = "count", 
+    vjust = -0.5,
+    size = 3
+  ) +
+  facet_wrap(~ key,) +
+  scale_y_continuous(limits = c(0,400)) +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank()
+  ) +
+  labs(x = NULL, y = "Number of articles\n")
+```
+
+
+Research articles.
+
+```{r}
+# Plot
+p1 <- 
+  articles %>% 
+  filter(Reviewer != "JW" & isEnglish & isResearch) %>% 
+  select(!!! indicator_vars_binary) %>%
+  gather(key, value) %>% 
+  drop_na(value) %>% 
+  mutate(key = fct_relevel(key, "Data")) %>% 
+  mutate(key = fct_relevel(key, "Protocol", after = 4)) %>% 
+  mutate(key = recode(key, !!! indicator_vars_dic)) %>% 
+  ggplot(aes(x = value, fill = key, color = key)) +
+  geom_bar(alpha = 0.75) +
+  geom_text(
+    aes(
+      y = stat(count), 
+      label = scales::percent(stat(prop), accuracy = 0.1), 
+      group = key
+    ), 
+    stat = "count", 
+    vjust = -0.5,
+    size = 3
+  ) +
+  facet_wrap(~ key,) +
+  scale_y_continuous(limits = c(0,400)) +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank()
+  ) +
+  labs(x = NULL, y = "Number of articles\n")
+
+# Save
+ggsave(
+  filename = file.path(fig_output, "paper_fig-1a_indicator-prevalence.jpg"),
+  plot = p1,
+  width = 6, 
+  height = 6
+)
+```
+
+
+## Indicators over time
+
+```{r}
+# Table
+tbl <- 
+  articles %>% 
+  filter(isEnglish & isResearch) %>%
+  gather("indicator", "value", !!! indicator_vars_binary) %>% 
+  group_by(Year, indicator) %>% 
+  count(value) %>% 
+  mutate(
+    prop = n / sum(n),
+    prop_formatted = scales::percent(prop),
+    n_prop = sprintf("%.f (%s)", n, prop_formatted)
+  ) %>% 
+  filter(value) %>% 
+  mutate(
+    sd = sqrt(prop * (1 - prop) / n),
+    ymin = max(0, prop - sd * qnorm(0.975)),
+    ymax = min(1, prop + sd * qnorm(0.975)),
+  ) 
+
+# Plot
+p2 <- 
+  tbl %>% 
+  ggplot(aes(x = Year, y = prop, color = indicator, fill = indicator)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.5, linetype = 2) +
+  guides(fill = FALSE, color = FALSE) +
+  facet_wrap(~ indicator) +
+  scale_y_continuous(
+    name = "Proportion with indicator (%)\n", 
+    labels = scales::percent, 
+    limits = c(0, 1)
+  ) +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+
+# Save
+ggsave(
+  filename = file.path(fig_output, "paper_fig-1b_indicator-over-time.jpg"),
+  plot = p2,
+  width = 8, 
+  height = 6
+)
+```
+
+## Join
+
+```{r}
+cowplot::plot_grid(
+  p1, p2,
+  labels = "auto",
+  rel_widths = c(2, 3),
+  scale = 0.9
+)
+
+ggsave(
+  filename = file.path(fig_output, "paper_fig-1_indicators-across-levels.jpg"),
+  width = 14, 
+  height = 8
+)
+```
+
+
+***
+
+
+# Extended Fig 1: Sharing type
+
+```{r}
+# Table
+tbl <- 
+  articles %>% 
+  filter(Reviewer != "JW" & isEnglish & isResearch) %>% 
+  select(Sample_ID, FundingType, DataShareCategory) %>%
+  drop_na() %>% 
+  mutate(FundingType = recode(FundingType, !!! fund_dic)) %>% 
+  gather(key, value, -Sample_ID) %>% 
+  mutate(key = recode(key, !!! indicator_vars_dic)) %>% 
+  filter(!value %in% c("No", "No statement")) %>% 
+  group_by(key) %>% 
+  add_count(N = n()) %>% 
+  ungroup() %>% 
+  separate_rows(value, sep = "; ") %>% 
+  group_by(Sample_ID) %>% 
+  distinct(value, .keep_all = T) %>% 
+  ungroup() %>% 
+  select(-Sample_ID) %>% 
+  group_by(N, key) %>%
+  count(value) %>% 
+  mutate(p = scales::percent(n / N, accuracy = 0.1)) %>% 
+  ungroup() %>% 
+  arrange(n)
+
+# Plot
+tbl %>% 
+  ggplot(aes(x = fct_inorder(value), y = n, fill = key, color = key)) +
+  geom_segment(aes(xend = value, y = 0, yend = n), size = 1) +
+  geom_point(size = 3) +
+  geom_text(aes(y = n, label = p), hjust = -0.3, size = 3) +
+  facet_wrap(~ key, scales = "free") +
+  scale_y_continuous(expand = expansion(mult = c(0, .17))) +
+  labs(x = NULL, y = "\nNumber of articles") +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(size = 0.1),
+    panel.grid.minor.x = element_blank(),
+    axis.text.y = element_text(margin = margin(r = 3)),
+    axis.text.x = element_text(margin = margin(t = 3)),
+    axis.ticks = element_blank(),
+    axis.title = element_text(face = "bold"),
+    legend.position = "none"
+  )
+
+# Save
+ggsave(
+  filename = file.path(fig_output, "paper_extended-fig-1_sharing-type.jpg"),
+  width = 10, 
+  height = 4
+)
+```
+
+
+
+
+***
+
+
+# Documentation {.tabset}
+
+## Session Info
+
+```{r session_info, echo=FALSE}
+print(sessionInfo(), locale = F)
+```
+
+
+## References
+
+```{r refs, echo=FALSE}
+(.packages()) %>% sort %>% lapply(citation) %>% lapply(c) %>% unique
+```

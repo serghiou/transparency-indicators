@@ -14,9 +14,9 @@ LICENSE
 README.md
 
 # Directories
-1_manual-evaluation
 2_algorithm-development
 3_algorithm-validation
+archive/
 data/
 data_code/
 eval_code/
