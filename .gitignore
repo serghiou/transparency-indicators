@@ -15,10 +15,10 @@ README.md
 
 # Directories
 2_algorithm-development
-3_algorithm-validation
 archive/
 data/
 data_code/
+dev_code
 eval_code/
 Figs/
 experimental_code/
