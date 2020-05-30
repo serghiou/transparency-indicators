@@ -81,8 +81,8 @@ eval_boot <- function(t_tr = df_true,
     filters = expr(!(!!! filters))
   }
 
-  s_tr <- t_tr %>% filter(is_test)
-  s_fs <- t_fs %>% filter(is_test)
+  s_tr <- t_tr %>% filter(!! sym("is_test"))
+  s_fs <- t_fs %>% filter(!! sym("is_test"))
 
   a <- t_tr %>% select(!!! grouping_tr, !!! grouping_fs) %>% mutate(origin = T)
   b <- t_fs %>% select(!!! grouping_tr, !!! grouping_fs) %>% mutate(origin = F)
@@ -101,6 +101,69 @@ eval_boot <- function(t_tr = df_true,
 
   s_tr_i <- s_tr[i_true, ]
   s_fs_i <- s_fs[i_false, ]
+
+  true_total_counts  <- t_tr_i %>% count(!!! grouping_tr, name = "n_t")
+  true_sample_counts <- s_tr_i %>% count(!!! grouping_tr, name = "n_s")
+
+  false_total_counts  <- t_fs_i %>% count(!!! grouping_fs, name = "n_t")
+  false_sample_counts <- s_fs_i %>% count(!!! grouping_fs, name = "n_s")
+
+  true_rates[[type]] <-
+    s_tr_i %>%
+    filter(!!! filters) %>%
+    count(!!! grouping_tr, !!! pred_label) %>%
+    merge(true_sample_counts) %>%
+    merge(true_total_counts) %>%
+    mutate(est_freq = n / n_s * n_t) %>%
+    as_tibble()
+
+  false_rates[[type]] <-
+    s_fs_i %>%
+    filter(!!! filters) %>%
+    count(!!! grouping_fs, !!! pred_label) %>%
+    merge(false_sample_counts) %>%
+    merge(false_total_counts) %>%
+    mutate(est_freq = n / n_s * n_t) %>%
+    as_tibble()
+
+  if (is_old) {
+
+    true_rates[[type]]  %<>% mutate_at(vars(!!! pred_label[1]), `=`, T)
+    false_rates[[type]] %<>% mutate_at(vars(!!! pred_label[1]), `=`, F)
+
+  }
+
+  eval_metrics(true_rates, false_rates, pred_label, with_prauc, type)
+}
+
+
+eval_no_boot <- function(t_tr = df_true,
+                         t_fs = df_false,
+                         filters = filtering_vars[0],
+                         grouping_tr = grouping_vars_true,
+                         grouping_fs = grouping_vars_false,
+                         pred_label = pred_label_vars,
+                         is_old = FALSE,
+                         negate_filters = FALSE,
+                         with_prauc = FALSE,
+                         type = "any") {
+
+  true_rates <- list()
+  false_rates <- list()
+
+  # e.g. turn isResearch into !isResearch
+  if (negate_filters) {
+    filters = expr(!(!!! filters))
+  }
+
+  s_tr <- t_tr %>% filter(!! sym("is_test"))
+  s_fs <- t_fs %>% filter(!! sym("is_test"))
+
+  t_tr_i <- t_tr
+  t_fs_i <- t_fs
+
+  s_tr_i <- s_tr
+  s_fs_i <- s_fs
 
   true_total_counts  <- t_tr_i %>% count(!!! grouping_tr, name = "n_t")
   true_sample_counts <- s_tr_i %>% count(!!! grouping_tr, name = "n_s")

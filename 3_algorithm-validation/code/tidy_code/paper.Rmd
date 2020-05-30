@@ -210,8 +210,10 @@ original_theme <- theme_set(my_theme)
 ```{r setup_1}
 # Load packages
 library(cowplot)
+library(doRNG)  # To set seed in multiple cores
+library(foreach)
 library(magrittr)
-library(pbapply)
+library(parallel)
 library(readxl)
 library(tidyverse)
 
@@ -221,6 +223,14 @@ figure_output <- "../../output/figure_output"
 
 # Source
 source("utils.R")
+```
+
+
+Parallelize.
+
+```{r}
+cl <- parallel::makeCluster(8L)
+pkgs <- c("magrittr", "tidyverse")
 ```
 
 
@@ -272,7 +282,7 @@ pred_label_vars <- syms(c(
   "is_open_data",  # this is what the algorithm said
   "isData",
   "is_effective",
-  "is_voluntary",
+  "is_active",
   "is_per_paper"
 ))
 ```
@@ -280,35 +290,39 @@ pred_label_vars <- syms(c(
 
 ## Evaluate
 
-Voluntary sharing in research articles.
+Active sharing in all articles.
 
 ```{r}
 # Set seed
 set.seed(1306)
 
-# Run bootstrap
-df_any <- 
-  pbreplicate(
-    n = params$n, 
-    expr = {
-      eval_boot(
-        type = "voluntary", 
-        is_old = F, 
-        filters = filtering_vars[1],
-        pred_label = pred_label_vars[c(1, 4)]  # 1 algorithm, 3 definition
-      )
-    }, 
-    simplify = F, 
-    cl = 8
+# Expected value
+expected_vals <- 
+  eval_no_boot(
+    type = "active", 
+    is_old = F, 
+    filters = filtering_vars[0],
+    pred_label = pred_label_vars[c(1, 4)]
   ) %>% 
-  bind_rows()
+  gather(metric, expected)
+
+# Run bootstrap
+df_any <- foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng%
+  eval_boot(
+    type = "active", 
+    is_old = F, 
+    filters = filtering_vars[0],
+    pred_label = pred_label_vars[c(1, 4)]
+  )
 
 # Summarize
-out_data$data_eval_voluntary <- 
+out_data$data_eval_active <- 
   df_any %>% 
-  eval_summarize()
+  eval_summarize() %>% 
+  left_join(expected_vals)
 
-out_data$data_eval_voluntary %>% 
+# Print
+out_data$data_eval_active %>% 
   sable()
 ```
 
@@ -337,7 +351,7 @@ Setup variables.
 ```{r}
 # Filter for the population of articles we are willing to consider
 filtering_vars <- syms(c(
-  "isResearch",  # IMPORTANT
+  "isResearch",
   "is_xml"
 ))
 
@@ -355,44 +369,53 @@ grouping_vars_false <- syms(c(
 pred_label_vars <- syms(c(
   "is_open_code", 
   "isCode",
-  "is_effective_code"
+  "is_effective_code",
+  "is_active_code"
 ))
 ```
 
 
 ## Evaluate
 
-Effective sharing in research.
+Active sharing in any article.
 
 ```{r}
 # Set seed
 set.seed(1306)
 
+# Expected value
+expected_vals <- 
+  eval_no_boot(
+    t_tr = true_code,
+    t_fs = bind_rows(df_true, df_false),
+    type = "active", 
+    is_old = F, 
+    filters = filtering_vars[0],
+    grouping_fs = grouping_vars_false[1],
+    pred_label = pred_label_vars[c(1, 4)]
+  ) %>% 
+  gather(metric, expected)
+
 # Run bootstrap
 df_any <- 
-  pbreplicate(
-    n = params$n, 
-    expr = {
-      eval_boot(
-        t_tr = true_code,
-        t_fs = bind_rows(df_true, df_false),
-        type = "effective", 
-        is_old = F, 
-        filters = filtering_vars[0],
-        grouping_fs = grouping_vars_false[1],
-        pred_label = pred_label_vars[c(1, 3)]
-      )
-    }, 
-    simplify = F, 
-    cl = 8
-  ) %>% 
-  bind_rows()
+  foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng%
+    eval_boot(
+      t_tr = true_code,
+      t_fs = bind_rows(df_true, df_false),
+      type = "active", 
+      is_old = F, 
+      filters = filtering_vars[0],
+      grouping_fs = grouping_vars_false[1],
+      pred_label = pred_label_vars[c(1, 4)]
+    )
 
 # Summarize
 out_code$code_eval_effective <- 
   df_any %>% 
-  eval_summarize()
+  eval_summarize() %>% 
+  left_join(expected_vals)
 
+# Print
 out_code$code_eval_effective %>% 
   sable()
 ```
@@ -450,20 +473,21 @@ Any.
 # Set seed
 set.seed(1306)
 
+# Expected value
+expected_vals <- 
+  eval_no_boot(type = "any", is_old = F, filters = filtering_vars[0]) %>% 
+  gather(metric, expected)
+
 # Run bootstrap
 df_any <- 
-  pbreplicate(
-    n = params$n, 
-    expr = eval_boot(type = "any", is_old = F, filters = filtering_vars[0]), 
-    simplify = F, 
-    cl = 8
-  ) %>% 
-  bind_rows()
+  foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng% 
+    eval_boot(type = "any", is_old = F, filters = filtering_vars[0])
 
 # Summarize
 out_coi$coi_eval_any <- 
   df_any %>% 
-  eval_summarize() 
+  eval_summarize() %>% 
+  left_join(expected_vals)
 
 out_coi$coi_eval_any %>% 
   sable()
@@ -522,21 +546,23 @@ Any.
 # Set seed
 set.seed(1306)
 
+# Expected value
+expected_vals <- 
+  eval_no_boot(type = "any", is_old = F, filters = filtering_vars[0]) %>% 
+  gather(metric, expected)
+
 # Run bootstrap
 df_any <- 
-  pbreplicate(
-    n = 3000, 
-    expr = eval_boot(type = "any", is_old = F, filters = filtering_vars[0]), 
-    simplify = F, 
-    cl = 8
-  ) %>% 
-  bind_rows()
+  foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng% 
+    eval_boot(type = "any", is_old = F, filters = filtering_vars[0])
 
 # Summarize
 out_fund$fund_eval_any <- 
   df_any %>% 
-  eval_summarize() 
+  eval_summarize() %>% 
+  left_join(expected_vals)
 
+# Print
 out_fund$fund_eval_any %>% 
   sable()
 ```
@@ -595,21 +621,23 @@ Any.
 # Set seed
 set.seed(1306)
 
+# Expected value
+expected_vals <- 
+  eval_no_boot() %>% 
+  gather(metric, expected)
+
 # Run bootstrap
 df_any <- 
-  pbreplicate(
-    n = params$n, 
-    expr = eval_boot(), 
-    simplify = F, 
-    cl = 8
-  ) %>% 
-  bind_rows()
+  foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng% 
+    eval_boot()
 
 # Summarize
 out_register$reg_eval_any <- 
   df_any %>% 
-  eval_summarize()
+  eval_summarize() %>% 
+  left_join(expected_vals)
 
+# Print
 out_register$reg_eval_any %>% 
   sable()
 ```
@@ -627,7 +655,7 @@ eval_tables <- list(
   COI = out_coi$coi_eval_any,
   Funding = out_fund$fund_eval_any,
   Registration = out_register$reg_eval_any,
-  Data = out_data$data_eval_voluntary,
+  Data = out_data$data_eval_active,
   Code = out_code$code_eval_effective
 ) 
 
@@ -649,8 +677,8 @@ colfunc <- colorRampPalette(c("white", "red"))
 p1 <- 
   eval_metrics %>% 
   filter(!metric %in% unwanted_metrics) %>% 
-  mutate(vals = sprintf("%0.1f%% \n(%0.1f%%-%0.1f%%)", median, lo, hi)) %>% 
-  ggplot(aes(x = Indicator, y = metric, fill = median, label = vals)) +
+  mutate(vals = sprintf("%0.1f%% \n(%0.1f%%-%0.1f%%)", expected, lo, hi)) %>% 
+  ggplot(aes(x = Indicator, y = metric, fill = expected, label = vals)) +
   geom_tile(aes(width = 0.99, height = 0.99)) +
   # scale_color_gradientn(colours = alpha(colfunc(10), 0.8)) +
   # scale_fill_continuous(limit=c(50, 100), low = "#F8766D", high = "#00BA38") +
@@ -690,9 +718,9 @@ colfunc <- colorRampPalette(c("lightgrey", "lightslategray"))
 p2 <- 
   eval_metrics %>% 
   filter(metric %in% c("P_pred", "P_error", "P_true")) %>% 
-  mutate(vals = sprintf("%0.1f%% \n(%0.1f%%-%0.1f%%)", median, lo, hi)) %>% 
+  mutate(vals = sprintf("%0.1f%% \n(%0.1f%%-%0.1f%%)", expected, lo, hi)) %>% 
   mutate_at(vars(metric), recode, !!! p_names) %>% 
-  ggplot(aes(x = Indicator, y = metric, label = vals, fill = median)) +
+  ggplot(aes(x = Indicator, y = metric, label = vals, fill = expected)) +
   geom_tile(aes(width = 0.99, height = 0.99)) +
   geom_text(size = 3) +
   scale_x_discrete(expand = c(0, 0)) +

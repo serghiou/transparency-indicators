@@ -237,6 +237,7 @@ library(tidyverse)
 library(vroom)
 
 # Import data
+meta <- vroom("../../data/tidy_data/pmcoa-meta-data_all.csv")
 pmcoa <- vroom("../../data/tidy_data/indicators_all.csv")
 
 # Import performance data
@@ -258,7 +259,7 @@ if (params$frac < 1) {
 ```
 
 
-Functions.
+A function to easily create counts and proportions.
 
 ```{r}
 sum_prop <- function(x, p, at = F) {
@@ -278,6 +279,64 @@ sum_prop <- function(x, p, at = F) {
   sprintf("%s (%.1f%%)", x_sum, x_prop)
 }
 ```
+
+
+A function to create a summary table for numeric features.
+
+```{r}
+tabulate_nums <- function(.data, 
+                          indicator_var = indicator_vars[1], 
+                          num_vars = num_vars_meta) {
+  
+  .data %>% 
+    filter(year >= 2000) %>% 
+    pivot_longer(
+      cols = c(!!! num_vars), 
+      names_to = "vars",
+      values_to = "vals") %>% 
+    mutate(vars = recode(vars, !!! dic)) %>% 
+    group_by(vars) %>% 
+    mutate(p_value = kruskal.test(vals ~ !!! indicator_var)$p.value) %>% 
+    group_by(vars, !!! indicator_var, p_value) %>% 
+    summarise_at(vars(vals), list(
+      mean = ~ mean(., na.rm = T), 
+      SD = ~ sd(., na.rm = T), 
+      Q1 = ~ quantile(., probs = 0.25, na.rm = T),
+      Q2 = ~ median(., na.rm = T), 
+      Q3 = ~ quantile(., probs = 0.75, na.rm = T),
+      min = ~ min(., na.rm = T),
+      max = ~ max(., na.rm = T),
+      n_missing = ~ sum(is.na(.)),
+      N = length
+    )) %>% 
+    ungroup() %>% 
+    gather(indicator, value, !!! indicator_var) %>% 
+    mutate(indicator = recode(indicator, !!! dic)) %>% 
+    select(indicator, value,  everything()) %>% 
+    select(-p_value, p_value) %>% 
+    mutate_at(vars(Q1:Q3), formatC, digits = 0, format = "f")
+  
+}
+```
+
+
+A function to prettify the table of numeric features created above.
+
+```{r}
+prettify_num_table <- function(.data, indicator_var = indicator_vars[1]) {
+  
+  .data %>% 
+    mutate(vals = glue::glue("{Q2} ({Q1}-{Q3})")) %>% 
+    mutate(value = if_else(value, "Present", "Absent")) %>% 
+    select(1:3, vals, p_value) %>% 
+    mutate(indicator = fct_inorder(indicator)) %>% 
+    spread(value, vals) %>% 
+    select(-p_value, p_value) %>% 
+    mutate(p_value = formatC(p_value, format = "E", digits = 2))
+  
+}
+```
+
 
 
 Variable groupings and definitions.
@@ -360,6 +419,23 @@ indicator_vars_dic <- c(
 )
 
 
+indicator_text_vars <- syms(c(
+  "data_text",
+  "code_text",
+  "coi_text",
+  "fund_text",
+  "register_text"
+))
+
+indicator_text_vars_dic <- c(
+  "data_text" = "Data sharing",
+  "code_text" = "Code sharing",
+  "coi_text" = "COI disclosure",
+  "fund_text" = "Funding disclosure",
+  "register_text" = "Protocol registration"
+)
+
+
 filter_vars <- syms(c(
   "year"
 ))
@@ -412,6 +488,13 @@ performance_error <- list(
 ```
 
 
+***
+
+
+# Prepare data
+
+## PMC
+
 Keep variables relevant to the current analysis.
 
 ```{r}
@@ -422,9 +505,30 @@ pmc <-
     pmcid_pmc, 
     !!! filter_vars, 
     !!! indicator_vars, 
+    ends_with("_text"), 
     !!! num_vars, 
     !!! factor_vars
-  )
+  ) %>% 
+  mutate(pmcid_pmc = as.character(pmcid_pmc))
+```
+
+
+## Meta
+
+```{r}
+meta %<>% 
+  select(pmcid_pmc, pmid, doi, title, n_auth:is_supplement) %>% 
+  mutate_at(vars(pmcid_pmc, pmid), as.character) %>% 
+  mutate(n_fig = n_fig_body + n_fig_floats) %>% 
+  mutate(n_table = n_table_body + n_table_floats) %>% 
+  select(-c(n_fig_body:n_table_floats)) %>% 
+  select(-n_fig, -n_table, n_fig, n_table)
+
+meta <- 
+  pmc %>% 
+  select(pmcid_pmc, year, ends_with("_pred"), !!!num_vars, !!!factor_vars) %>%
+  inner_join(meta, by = "pmcid_pmc") %>% 
+  select(pmcid_pmc, pmid, doi, everything())
 ```
 
 
@@ -836,6 +940,50 @@ pmcoa %>%
     tl.srt = 45, # Text label color and rotation
     diag = FALSE   # Hide correlation coefficient on the principal diagonal
   )
+```
+
+
+***
+
+
+# Meta-data
+
+Number of articles published ≥ 2000.
+
+```{r}
+sprintf("No. published ≥ 2000 = %s", nrow(filter(meta, year >= 2000)))
+```
+
+
+All statistics - all articles, 2000 onward.
+
+```{r}
+# Tabulate (this is an expensive operation)
+num_table <- 
+  indicator_vars %>% 
+  purrr::map_dfr(~ tabulate_nums(meta, .x, c(num_vars, num_vars_meta)))
+
+# Save
+write.csv(num_table, "../../output/table_output/indicator-eval_num-table.csv")
+
+# Print
+num_table %>% 
+  sable(full_width = T) %>% 
+  collapse_rows(columns = 1, valign = "top")
+```
+
+
+Median and IQR - all articles, 2000 onward.
+
+```{r}
+# Save
+prettify_num_table(num_table) %>%
+  write.csv("../../output/table_output/indicator-eval_num-table-pretty.csv")
+  
+# Print
+prettify_num_table(num_table) %>%
+  sable(full_width = T) %>% 
+  collapse_rows(columns = 1, valign = "top")
 ```
 
 
@@ -1303,6 +1451,83 @@ pmc %>%
   group_by(indicator) %>% 
   summarise_at(vars(p), list(coef_of_variation = ~ sd(.) / mean(.) * 100)) %>% 
   sable()
+```
+
+
+## Representative examples
+
+These are random samples taken from all fields with clusters with >250 articles. These were randomly identified using the random number generator of Excel by Kevin Boyack.
+
+```{r}
+# Import
+field_reps <- read_xlsx(
+  path = "../../data/external_data/field-representatives.xlsx", 
+  sheet = 2
+)
+
+# Clean
+field_reps %<>% 
+  select(-PM5, -np1519) %>% 
+  select(Field, Clusters = 2, Journals = 3, Reviews = 4) %>% 
+  mutate(Reviews = str_replace(Reviews, "^.*; (.*?)\\..*$", "\\1")) %>%
+  group_by(Field) %>% 
+  summarise_all(~ paste(., collapse = "; "))
+
+# Save
+write_csv(
+  field_reps, 
+  "../../output/table_output/indicator-eval_field-reps.csv"
+)
+
+# Print
+field_reps %>% sable(full_width = T)
+```
+
+
+## Representative extractions
+
+The extracted text for the most cited article with a positive indicator. Using replace = T because certain categories have less than 10 articles with specific indicators. The data were arranged in citation descending order and the best example in terms of (a) a correct prediction, (b) a short text and (c) as high citation as possible was chosen.
+
+```{r}
+# Set seed
+set.seed(1515)
+
+# Create table
+field_text <- 
+  pmc %>% 
+  select(field, ends_with("_text"), pmcid_pmc, n_cite) %>% 
+  pivot_longer(ends_with("_text"), "indicator") %>% 
+  drop_na(field, value) %>% 
+  group_by(field, indicator) %>% 
+  sample_n(10,  replace = T) %>% 
+  ungroup() %>% 
+  arrange(field, indicator, -n_cite) %>% 
+  select(-n_cite, -pmcid_pmc, pmcid_pmc, n_cite) %>% 
+  mutate(indicator = recode(indicator, !!! indicator_text_vars_dic))
+
+# Save
+field_text %>% 
+  write.csv("../../data/interim_data/indicator-eval_field-text.csv")
+```
+
+```{r}
+# Import selections
+field_text <- 
+  read_excel("../../data/interim_data/indicator-eval_field-text_complete.xlsx")
+
+# Create table
+field_text <- 
+  field_text %>% 
+  filter(is_eligible) %>% 
+  select(field:value) %>%
+  pivot_wider(names_from = "indicator", values_from = "value")
+
+# Save
+field_text %>% 
+  write_csv("../../output/table_output/indicator-eval_field-text.csv")
+
+# Print
+field_text %>% sable(full_width = T)
 ```
 
 

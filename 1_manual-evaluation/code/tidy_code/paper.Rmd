@@ -154,12 +154,15 @@ my_theme <-
   # this and theme_minimal() are my favorite
   theme_light() +  
   theme(
-    text = element_text(color = "grey20"),
-    title = element_text(face = "bold"),
-    legend.key = element_rect(colour = NA, fill = NA),  # Avoid borders
-    panel.border = element_blank(), 
     axis.ticks = element_blank(),
-    axis.title = element_text(face = "bold")
+    axis.title = element_text(face = "bold"),
+    axis.text.x = element_text(margin = margin(t = 3)),
+    axis.text.y  = element_text(margin = margin(r = 2)),
+    legend.key = element_rect(colour = NA, fill = NA),  # Avoid borders
+    panel.border = element_blank(),
+    panel.spacing = unit(1, "lines"),
+    text = element_text(color = "grey20"),
+    title = element_text(face = "bold")
   )
 
 # Make the above theme the default theme
@@ -577,6 +580,7 @@ articles %>%
   mutate(key = fct_relevel(key, "Data")) %>% 
   mutate(key = fct_relevel(key, "Protocol", after = 4)) %>% 
   mutate(key = recode(key, !!! indicator_vars_dic)) %>% 
+  mutate(value = if_else(value, "Yes", "No")) %>% 
   ggplot(aes(x = value, fill = key, color = key)) +
   geom_bar(alpha = 0.75) +
   geom_text(
@@ -664,7 +668,11 @@ tbl <-
     sd = sqrt(prop * (1 - prop) / n),
     ymin = max(0, prop - sd * qnorm(0.975)),
     ymax = min(1, prop + sd * qnorm(0.975)),
-  ) 
+  ) %>% 
+  ungroup() %>% 
+  mutate(indicator = fct_relevel(indicator, "Data")) %>% 
+  mutate(indicator = fct_relevel(indicator, "Protocol", after = 4)) %>% 
+  mutate(indicator = recode(indicator, !!! indicator_vars_dic))
 
 # Plot
 p2 <- 
@@ -679,6 +687,7 @@ p2 <-
     labels = scales::percent, 
     limits = c(0, 1)
   ) +
+  coord_cartesian(expand = F) +
   theme(
     panel.grid.minor = element_blank()
   )
