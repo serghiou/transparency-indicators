@@ -240,13 +240,9 @@ library(vroom)
 meta <- vroom("../../data/tidy_data/pmcoa-meta-data_all.csv")
 pmcoa <- vroom("../../data/tidy_data/indicators_all.csv")
 
-# Import performance data
+# Import validation data (out_data, out_code, out_coi, out_fund, out_register)
 data_output <- "../../../3_algorithm-validation/output/data_output"
-load(file.path(data_output, "coi-eval-out_coi.RData"))
-load(file.path(data_output, "fund-eval-out_fund.RData"))
-load(file.path(data_output, "register-eval-out_reg.RData"))
-load(file.path(data_output, "data-code-eval_out-data.RData"))
-load(file.path(data_output, "data-code-eval_out-code.RData"))
+load(file.path(data_output, "paper_eval-lists.RData"))
 ```
 
 ```{r, include=FALSE}
@@ -472,17 +468,17 @@ Create table of prevalence correction.
 
 ```{r}
 performance_error <- list(
-  is_data_pred = out_data$data_eval_voluntary,
-  is_code_pred = out_code$code_eval_effective,
+  is_data_pred = out_data$data_eval_active,
+  is_code_pred = out_code$code_eval_active,
   is_coi_pred  = out_coi$coi_eval_any,
   is_fund_pred = out_fund$fund_eval_any,
-  is_register_pred = out_reg$reg_eval_any
+  is_register_pred = out_register$reg_eval_any
 ) %>% 
   bind_rows(.id = "indicator") %>% 
   filter(metric %in% c("NPV", "PPV")) %>% 
-  mutate_at(vars(median:hi), magrittr::divide_by, 100) %>% 
+  mutate_at(vars(median:expected), magrittr::divide_by, 100) %>% 
   mutate(value = if_else(metric == "PPV", "Yes", "No")) %>% 
-  gather(estimand, estimate, median:hi) %>% 
+  gather(estimand, estimate, expected, lo, hi) %>% 
   # pivot_wider(names_from = metric, values_from = median:hi) %>% 
   mutate(indicator = recode(indicator, !!!dic))
 ```
@@ -548,10 +544,12 @@ observed <-
   gather() %>% 
   mutate(key = recode(key, !!!dic)) %>% 
   mutate(value = if_else(value, "Yes", "No")) %>% 
+  mutate(key = fct_relevel(key, "Data sharing")) %>% 
   group_by(key) %>% 
   count(value) %>% 
   mutate(N = sum(n)) %>% 
-  mutate(p = scales::percent(n / N, accuracy = 0.1))
+  mutate(p = scales::percent(n / N, accuracy = 0.1)) %>% 
+  ungroup()
   
 corrected <- 
   pmc %>% 
@@ -579,11 +577,12 @@ corrected <-
   ) %>% 
   mutate(p = scales::percent(present / N, accurcy = 0.1)) %>% 
   pivot_wider(id_cols = c(key), names_from = estimand, values_from = p) %>% 
-  mutate(p_corrected = glue::glue("{median} ({hi}-{lo})")) %>% 
+  mutate(p_corrected = glue::glue("{expected} ({hi}-{lo})")) %>% 
   select(key, p_corrected) %>% 
-  mutate(key = fct_relevel(key, "Data sharing")) 
+  ungroup()
 
 indicator_counts <- full_join(observed, corrected)
+  
 
 indicator_counts %>% 
   sable() %>% 
@@ -601,10 +600,12 @@ observed <-
   gather(key, value, -year) %>% 
   mutate(key = recode(key, !!!dic)) %>% 
   mutate(value = if_else(value, "Yes", "No")) %>% 
+  mutate(key = fct_relevel(key, "Data sharing")) %>% 
   group_by(key) %>% 
   count(value) %>% 
   mutate(N = sum(n)) %>% 
-  mutate(p = scales::percent(n / N, accuracy = 0.1))
+  mutate(p = scales::percent(n / N, accuracy = 0.1)) %>% 
+  ungroup()
   
 corrected <- 
   pmc %>% 
@@ -633,9 +634,9 @@ corrected <-
   ) %>% 
   mutate(p = scales::percent(present / N, accurcy = 0.1)) %>% 
   pivot_wider(id_cols = c(key), names_from = estimand, values_from = p) %>% 
-  mutate(p_corrected = glue::glue("{median} ({hi}-{lo})")) %>% 
+  mutate(p_corrected = glue::glue("{expected} ({hi}-{lo})")) %>% 
   select(key, p_corrected) %>% 
-  mutate(key = fct_relevel(key, "Data sharing"))
+  ungroup()
 
 indicator_counts_2000 <- full_join(observed, corrected)
 
@@ -655,10 +656,12 @@ observed <-
   gather() %>% 
   mutate(key = recode(key, !!!dic)) %>% 
   mutate(value = if_else(value, "Yes", "No")) %>% 
+  mutate(key = fct_relevel(key, "Data sharing")) %>% 
   group_by(key) %>% 
   count(value) %>% 
   mutate(N = sum(n)) %>% 
-  mutate(p = scales::percent(n / N, accuracy = 0.1))
+  mutate(p = scales::percent(n / N, accuracy = 0.1)) %>% 
+  ungroup()
   
 corrected <- 
   pmc %>% 
@@ -687,9 +690,9 @@ corrected <-
   ) %>% 
   mutate(p = scales::percent(present / N, accurcy = 0.1)) %>% 
   pivot_wider(id_cols = c(key), names_from = estimand, values_from = p) %>% 
-  mutate(p_corrected = glue::glue("{median} ({hi}-{lo})")) %>% 
+  mutate(p_corrected = glue::glue("{expected} ({hi}-{lo})")) %>% 
   select(key, p_corrected) %>% 
-  mutate(key = fct_relevel(key, "Data sharing")) 
+  ungroup()
 
 indicator_counts_art <- full_join(observed, corrected)
 
@@ -709,10 +712,12 @@ observed <-
   gather() %>% 
   mutate(key = recode(key, !!!dic)) %>% 
   mutate(value = if_else(value, "Yes", "No")) %>% 
+  mutate(key = fct_relevel(key, "Data sharing")) %>% 
   group_by(key) %>% 
   count(value) %>% 
   mutate(N = sum(n)) %>% 
-  mutate(p = scales::percent(n / N, accuracy = 0.1))
+  mutate(p = scales::percent(n / N, accuracy = 0.1)) %>% 
+  ungroup()
   
 corrected <- 
   pmc %>% 
@@ -741,9 +746,9 @@ corrected <-
   ) %>% 
   mutate(p = scales::percent(present / N, accurcy = 0.1)) %>% 
   pivot_wider(id_cols = c(key), names_from = estimand, values_from = p) %>% 
-  mutate(p_corrected = glue::glue("{median} ({hi}-{lo})")) %>% 
+  mutate(p_corrected = glue::glue("{expected} ({hi}-{lo})")) %>% 
   select(key, p_corrected) %>% 
-  mutate(key = fct_relevel(key, "Data sharing"))
+  ungroup()
 
 indicator_counts_art_2000 <- full_join(observed, corrected)
 
@@ -851,7 +856,7 @@ indicator_counts_by_pmc %>%
     panel.grid.major.x = element_blank()
   )
 
-ggsave("indicator-eval_indicator-counts-by-pmc.jpg")
+ggsave("../../output/figure_output/indicator-eval_indicator-counts-by-pmc.jpg")
 ```
 
 
@@ -1039,7 +1044,7 @@ pmc %>%
   )
 
 ggsave(
-  filename = "indicator-eval_indicator-by-year.jpg", 
+  filename = "../../output/figure_output/indicator-eval_indicator-by-year.jpg", 
   width = 11,
   height = 7
 )
@@ -1094,7 +1099,7 @@ pmc %>%
   )
 
 ggsave(
-  filename = "indicator-eval_indicator-by-year_art.jpg", 
+  "../../output/figure_output/indicator-eval_indicator-by-year_art.jpg", 
   width = 11,
   height = 7
 )
@@ -1174,7 +1179,11 @@ country_n %>%
   labs(x = NULL, y = NULL) +
   scale_fill_viridis_c(labels = scales::percent, name = "Publications (%)\n")
 
-ggsave("indicator-eval_indicator-by-country.jpg", width = 12, height = 12)
+ggsave(
+  "../../output/figure_output/indicator-eval_indicator-by-country.jpg", 
+  width = 12, 
+  height = 12
+)
 ```
 
 
@@ -1241,7 +1250,11 @@ field_table %>%
     plot.margin = unit(c(0, 0, 0, 0), "cm")
   )
 
-ggsave("indicator-eval_field-by-indicator_unscaled.jpg", width = 8, height = 6)
+ggsave(
+  "../../output/figure_output/indicator-eval_field-by-indicator_unscaled.jpg",
+  width = 8, 
+  height = 6
+)
 ```
 
 
@@ -1282,7 +1295,11 @@ field_table %>%
     plot.margin = unit(c(0, 0, 0, 0), "cm")
   )
 
-ggsave("indicator-eval_field-by-indicator_scaled.jpg", width = 8, height = 6)
+ggsave(
+  "../../output/figure_output/indicator-eval_field-by-indicator_scaled.jpg",
+  width = 8, 
+  height = 6
+)
 ```
 
 
@@ -1345,7 +1362,7 @@ field_table_art %>%
   )
 
 ggsave(
-  "indicator-eval_field-by-indicator_art_unscaled.jpg", 
+  "../../output/figure_output/indicator-eval_field-by-ind_art_unscaled.jpg", 
   width = 8, 
   height = 6
 )
@@ -1390,7 +1407,7 @@ field_table_art %>%
   )
 
 ggsave(
-  "indicator-eval_field-by-indicator_art_scaled.jpg", 
+  "../../output/figure_output/indicator-eval_field-by-ind_art_scaled.jpg", 
   width = 8, 
   height = 6
 )
@@ -1454,37 +1471,58 @@ pmc %>%
 ```
 
 
-## Representative examples
+## Representative titles
 
-These are random samples taken from all fields with clusters with >250 articles. These were randomly identified using the random number generator of Excel by Kevin Boyack.
+Identify the titles of 15 random articles from each field.
 
 ```{r}
-# Import
-field_reps <- read_xlsx(
-  path = "../../data/external_data/field-representatives.xlsx", 
-  sheet = 2
-)
+# Set seed
+set.seed(1425)
 
-# Clean
-field_reps %<>% 
-  select(-PM5, -np1519) %>% 
-  select(Field, Clusters = 2, Journals = 3, Reviews = 4) %>% 
-  mutate(Reviews = str_replace(Reviews, "^.*; (.*?)\\..*$", "\\1")) %>%
-  group_by(Field) %>% 
-  summarise_all(~ paste(., collapse = "; "))
+# Create table
+field_titles <- 
+  meta %>% 
+  select(field, title, journal, n_cite) %>% 
+  drop_na(field, n_cite) %>% 
+  group_by(field) %>% 
+  sample_n(15) %>% 
+  arrange(field, -n_cite) %>% 
+  rename(
+    Field = field, Title = title, Journal = journal, Citations = n_cite
+  ) 
 
 # Save
-write_csv(
-  field_reps, 
-  "../../output/table_output/indicator-eval_field-reps.csv"
-)
-
-# Print
-field_reps %>% sable(full_width = T)
+field_titles %>% 
+  write.csv("../../data/interim_data/indicator-eval_field-titles.csv")
 ```
 
 
-## Representative extractions
+Select the 3 most representative titles from each field.
+
+```{r}
+# Import selections
+field_titles <- read_excel(
+  "../../data/interim_data/indicator-eval_field-titles_complete.xlsx"
+)
+
+# Create table
+field_titles <- 
+  field_titles %>% 
+  filter(is_eligible) %>% 
+  select(Field:Journal)
+
+# Save
+field_titles %>% 
+  write_csv("../../output/table_output/indicator-eval_field-titles.csv")
+
+# Print
+field_titles %>% 
+  sable(full_width = T) %>% 
+  collapse_rows(columns = 1, valign = "top")
+```
+
+
+## Representative text
 
 The extracted text for the most cited article with a positive indicator. Using replace = T because certain categories have less than 10 articles with specific indicators. The data were arranged in citation descending order and the best example in terms of (a) a correct prediction, (b) a short text and (c) as high citation as possible was chosen.
 
@@ -1594,7 +1632,11 @@ indicator_by_journal %>%
     panel.spacing = unit(1, "lines")
   )
 
-ggsave("indicator-eval_indicator-by-journal.jpg", width = 10, height = 6)
+ggsave(
+  "../../output/figure_output/indicator-eval_indicator-by-journal.jpg", 
+  width = 10, 
+  height = 6
+)
 ```
 
 
@@ -1656,7 +1698,11 @@ indicator_by_journal_art %>%
     panel.spacing = unit(1, "lines")
   )
 
-ggsave("indicator-eval_indicator-by-journal_art.jpg", width = 10, height = 6)
+ggsave(
+  "../../output/figure_output/indicator-eval_indicator-by-journal_art.jpg",
+  width = 10, 
+  height = 6
+)
 ```
 
 
@@ -1815,7 +1861,11 @@ indicator_by_publisher %>%
     panel.spacing = unit(1, "lines")
   )
 
-ggsave("indicator-eval_indicator-by-publisher.jpg", width = 10, height = 6)
+ggsave(
+  "../../output/figure_output/indicator-eval_indicator-by-publisher.jpg", 
+  width = 10, 
+  height = 6
+)
 ```
 
 
@@ -1877,7 +1927,11 @@ indicator_by_publisher_art %>%
     panel.spacing = unit(1, "lines")
   )
 
-ggsave("indicator-eval_indicator-by-publisher_art.jpg", width = 10, height = 6)
+ggsave(
+  "../../output/figure_output/indicator-eval_indicator-by-publisher_art.jpg",
+  width = 10, 
+  height = 6
+)
 ```
 
 

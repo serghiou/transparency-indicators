@@ -263,6 +263,7 @@ indicator_vars_dic <- c(
   hasConflictFT = "COI disclosure",
   hasConflictPubMed = "COI disclosure (PubMed)",
   hasDataNoteFT = "Data sharing",
+  DataShareCategory = "Data sharing",
   hasDataNoteAbstract = "Data sharing (PubMed)",
   hasProtocolFT = "Protocol registration",
   hasProtRegInfoAbstractPub = "Protocol registration (PubMed)",
@@ -779,6 +780,73 @@ ggsave(
 ```
 
 
+***
+
+
+# Supplementary Table 1: PMC vs non-PMC
+
+All.
+
+```{r}
+# Indicators for all articles
+all <- 
+  articles %>% 
+  filter(Reviewer != "JW" & isEnglish) %>%
+  mutate(is_PMC = is.na(PMCID)) %>% 
+  gather(indicator, vals, COI, Funding) %>% 
+  mutate(indicator = recode(indicator, !!! indicator_vars_dic)) %>% 
+  group_by(indicator) %>% 
+  mutate(p_val = fisher.test(vals, is_PMC)$p.value) %>% 
+  group_by(is_PMC, indicator, p_val) %>% 
+  count(vals) %>% 
+  mutate(
+    p = scales::percent(n / sum(n), accuracy = 0.1),
+    p_text = sprintf("%.f (%s)", n, p)
+  ) %>% 
+  select(-n, -p) %>% 
+  ungroup() %>% 
+  mutate(is_PMC = if_else(is_PMC, "PMC", "non-PMC")) %>% 
+  pivot_wider(names_from = is_PMC, values_from = p_text) %>% 
+  mutate(vals = if_else(vals, "Yes", "No")) %>% 
+  select(-p_val, p_val)
+
+# Indicators for research articles
+research <- 
+  articles %>% 
+  filter(Reviewer != "JW" & isEnglish & isResearch) %>%
+  mutate(is_PMC = is.na(PMCID)) %>% 
+  gather(indicator, vals, Data, Code, Protocol, Novel, Replication) %>% 
+  mutate(indicator = fct_inorder(indicator)) %>% 
+  mutate(indicator = recode(indicator, !!! indicator_vars_dic)) %>% 
+  group_by(indicator) %>% 
+  mutate(p_val = fisher.test(vals, is_PMC)$p.value) %>% 
+  group_by(is_PMC, indicator, p_val) %>% 
+  count(vals) %>% 
+  mutate(
+    p = scales::percent(n / sum(n), accuracy = 0.1),
+    p_text = sprintf("%.f (%s)", n, p)
+  ) %>% 
+  select(-n, -p) %>% 
+  ungroup() %>% 
+  mutate(is_PMC = if_else(is_PMC, "PMC", "non-PMC")) %>% 
+  pivot_wider(names_from = is_PMC, values_from = p_text) %>% 
+  mutate(vals = if_else(vals, "Yes", "No")) %>% 
+  select(-p_val, p_val)
+
+# Join
+indicator_by_pmc <- bind_rows(all, research)
+
+# Save
+write_csv(
+  indicator_by_pmc, 
+  "../../output/table_output/paper_indicator-by-pmc.csv"
+)
+
+# Print
+indicator_by_pmc %>% 
+  sable() %>% 
+  collapse_rows(columns = c(1, 5), valign = "top")
+```
 
 
 ***

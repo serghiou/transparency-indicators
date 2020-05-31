@@ -410,13 +410,13 @@ df_any <-
     )
 
 # Summarize
-out_code$code_eval_effective <- 
+out_code$code_eval_active <- 
   df_any %>% 
   eval_summarize() %>% 
   left_join(expected_vals)
 
 # Print
-out_code$code_eval_effective %>% 
+out_code$code_eval_active %>% 
   sable()
 ```
 
@@ -643,6 +643,13 @@ out_register$reg_eval_any %>%
 ```
 
 
+Stop the cluster.
+
+```{r}
+parallel::stopCluster(cl = cl)
+```
+
+
 ***
 
 
@@ -656,7 +663,7 @@ eval_tables <- list(
   Funding = out_fund$fund_eval_any,
   Registration = out_register$reg_eval_any,
   Data = out_data$data_eval_active,
-  Code = out_code$code_eval_effective
+  Code = out_code$code_eval_active
 ) 
 
 eval_metrics <- eval_tables %>% bind_rows(.id = "Indicator")
@@ -754,6 +761,21 @@ ggsave(
   width = 7
 )
 ```
+
+
+***
+
+
+# Save
+
+```{r}
+save(
+  out_data, out_code, out_coi, out_fund, out_register, 
+  file = "../../output/data_output/paper_eval-lists.RData"
+)
+```
+
+
 
 
 ***
