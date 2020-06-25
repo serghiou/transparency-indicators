@@ -226,71 +226,81 @@ cites <- read_xlsx("../../data/external_data/stelios_pmid_info.xlsx", 3)
 ```{r}
 # Define variable groups
 indicator_vars <- syms(c(
-  "isNovel",
-  "isReplication",
-  "FundingType",
-  "hasConflictFT",
   "hasDataNoteFT",
+  "hasCode",
+  "hasConflictFT",
+  "FundingType",
   "hasProtocolFT",
-  "hasCode"
+  "isNovel",
+  "isReplication"
 ))
 
 indicator_vars_binary <- syms(c(
-  "Novel",
-  "Replication",
-  "Funding",
-  "COI",
   "Data",
+  "Code",
+  "COI",
+  "Funding",
   "Protocol",
-  "Code"
+  "Novel",
+  "Replication"
 ))
 
+indicator_vars_names <- c(
+  "Data sharing",
+  "Code sharing",
+  "COI disclosure",
+  "Funding disclosure",
+  "Protocol registration",
+  "Novelty",
+  "Replication"
+)
+
 indicator_vars_pubmed <- syms(c(
-  "isReplicationNoveltyAbstract",
-  "hasFundingPubMed",
-  "hasConflictPubMed",
   "hasDataNoteAbstract",
+  "hasCodeAbstract",
+  "hasConflictPubMed",
+  "hasFundingPubMed",
   "hasProtRegInfoAbstractPub",
-  "hasCodeAbstract"
+  "isReplicationNoveltyAbstract"
 ))
 
 indicator_vars_dic <- c(
-  isNovel  = "Novelty",
-  isReplication = "Replication",
-  isReplicationNoveltyAbstract = "Novelty or Replication (PubMed)",
-  FundingType = "Funding disclosure",
-  hasFundingPubMed = "Funding disclosure (PubMed)",
-  hasConflictFT = "COI disclosure",
-  hasConflictPubMed = "COI disclosure (PubMed)",
   hasDataNoteFT = "Data sharing",
   DataShareCategory = "Data sharing",
-  hasDataNoteAbstract = "Data sharing (PubMed)",
-  hasProtocolFT = "Protocol registration",
-  hasProtRegInfoAbstractPub = "Protocol registration (PubMed)",
-  hasCode = "Code sharing",
   Data = "Data sharing",
+  hasDataNoteAbstract = "Data sharing (PubMed)",
+  hasCode = "Code sharing",
   Code = "Code sharing",
   COI = "COI disclosure",
+  hasConflictFT = "COI disclosure",
+  hasConflictPubMed = "COI disclosure (PubMed)",
+  FundingType = "Funding disclosure",
   Funding = "Funding disclosure",
+  hasFundingPubMed = "Funding disclosure (PubMed)",
+  hasProtocolFT = "Protocol registration",
   Protocol = "Protocol registration",
-  Novel = "Novelty"
+  hasProtRegInfoAbstractPub = "Protocol registration (PubMed)",
+  isNovel  = "Novelty",
+  Novel = "Novelty",
+  isReplication = "Replication",
+  isReplicationNoveltyAbstract = "Novelty or Replication (PubMed)"
 )
 
 indicators_simplified_dic <- c(
+  hasDataNoteFT = "Data sharing",
+  hasDataNoteAbstract = "Data sharing",
+  hasCode = "Code sharing",
+  hasCodeAbstract = "Code sharing",
+  hasConflictFT = "COI disclosure",
+  hasConflictPubMed = "COI disclosure",
+  FundingType = "Funding disclosure",
+  hasFundingPubMed = "Funding disclosure",
+  hasProtocolFT = "Protocol registration",
+  hasProtRegInfoAbstractPub = "Protocol registration",
   isNovel  = "Novel or Replication",
   isReplication = "Novel or Replication",
   isReplicationNovelty = "Novel or Replication",
-  isReplicationNoveltyAbstract = "Novel or Replication",
-  FundingType = "Funding disclosure",
-  hasFundingPubMed = "Funding disclosure",
-  hasConflictFT = "COI disclosure",
-  hasConflictPubMed = "COI disclosure",
-  hasDataNoteFT = "Data sharing",
-  hasDataNoteAbstract = "Data sharing",
-  hasProtocolFT = "Protocol registration",
-  hasProtRegInfoAbstractPub = "Protocol registration",
-  hasCode = "Code sharing",
-  hasCodeAbstract = "Code sharing"
+  isReplicationNoveltyAbstract = "Novel or Replication"
 )
 
 
@@ -609,8 +619,7 @@ Research articles.
 
 ```{r}
 # Plot
-p1 <- 
-  articles %>% 
+articles %>% 
   filter(Reviewer != "JW" & isEnglish & isResearch) %>% 
   select(!!! indicator_vars_binary) %>%
   gather(key, value) %>% 
@@ -642,14 +651,60 @@ p1 <-
 # Save
 ggsave(
   filename = file.path(fig_output, "paper_fig-1a_indicator-prevalence.jpg"),
-  plot = p1,
   width = 6, 
   height = 6
 )
 ```
 
 
+Research articles - single column per indicator.
+
+```{r}
+# Set colors
+cols <- setNames(scales::hue_pal()(7), as.character(indicator_vars_names))
+  
+# Plot
+p1 <- 
+  articles %>% 
+  filter(Reviewer != "JW" & isEnglish & isResearch) %>% 
+  select(!!! indicator_vars_binary) %>%
+  gather(key, value) %>% 
+  drop_na(value) %>% 
+  mutate(key = fct_relevel(key, "Data")) %>% 
+  mutate(key = fct_relevel(key, "Protocol", after = 4)) %>% 
+  mutate(key = recode(key, !!! indicator_vars_dic)) %>% 
+  group_by(key) %>% 
+  summarise_at(vars(value), list(n = sum, p = mean)) %>%
+  ungroup() %>% 
+  mutate(p = scales::percent(p, accuracy = 0.1)) %>% 
+  mutate(key = fct_reorder(key, n)) %>% 
+  ggplot(aes(x = key, y = n, fill = key, color = key)) +
+  geom_col(alpha = 0.75) +
+  geom_text(aes(label = p), hjust = -0.1, size = 3) +
+  coord_flip() +
+  scale_y_continuous(expand = expansion(add = c(0, 30))) +
+  scale_fill_manual(values = cols) +
+  scale_color_manual(values = cols) +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank()
+  ) +
+  labs(x = NULL, y = "\nNumber of articles")
+
+# Save
+ggsave(
+  filename = file.path(fig_output, "paper_fig-1a_indicator-prevalence.jpg"),
+  plot = p1,
+  width = 7, 
+  height = 6
+)
+```
+
+
 ## Indicators over time
+
+Original data across all research articles.
 
 ```{r}
 # Table
@@ -676,8 +731,7 @@ tbl <-
   mutate(indicator = recode(indicator, !!! indicator_vars_dic))
 
 # Plot
-p2 <- 
-  tbl %>% 
+tbl %>% 
   ggplot(aes(x = Year, y = prop, color = indicator, fill = indicator)) +
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.5, linetype = 2) +
@@ -692,6 +746,54 @@ p2 <-
   theme(
     panel.grid.minor = element_blank()
   )
+```
+
+
+Centered moving average across 4-year intervals across research articles.
+
+```{r}
+tbl <- 
+  articles %>% 
+  filter(isEnglish & isResearch) %>%
+  gather("indicator", "value", !!! indicator_vars_binary) %>% 
+  group_by(Year, indicator) %>% 
+  summarise_at(vars(value), list(n = sum, N = ~n(), p = mean)) %>% 
+  replace_na(list(n = 0, p = 0)) %>% 
+  mutate(sem = sqrt(p * (1 - p) / N)) %>% 
+  group_by(indicator) %>% 
+  mutate(n_ma = zoo::rollsum(n, k = 4, fill = NA)) %>% 
+  mutate(N_ma = zoo::rollsum(N, k = 4, fill = NA)) %>% 
+  group_by(Year, indicator) %>% 
+  mutate(p_ma = n_ma / N_ma) %>% 
+  mutate(sem_ma = sqrt(p_ma * (1 - p_ma) / N_ma)) %>% 
+  mutate(
+    min_ma = max(0, p_ma - sem_ma * qnorm(0.975)),
+    max_ma = min(1, p_ma + sem_ma * qnorm(0.975))
+  ) %>% 
+  ungroup() %>% 
+  mutate(indicator = fct_relevel(indicator, "Data")) %>% 
+  mutate(indicator = fct_relevel(indicator, "Protocol", after = 4)) %>% 
+  mutate(indicator = recode(indicator, !!! indicator_vars_dic))
+
+# Plot
+p2 <- 
+  tbl %>% 
+  ggplot(aes(x = Year, y = p_ma, color = indicator, fill = indicator)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = min_ma, ymax = max_ma), alpha = 0.5, linetype = 2) +
+  guides(fill = FALSE, color = FALSE) +
+  facet_wrap(~ indicator) +
+  scale_y_continuous(
+    name = "4-year moving proportion with indicator (%)\n", 
+    labels = scales::percent, 
+    limits = c(0, 1)
+  ) +
+  xlab("Year") +
+  coord_cartesian(expand = F) +
+  theme(
+    axis.text.x = element_text(margin = margin(t = 7)),
+    panel.grid.minor = element_blank()
+  )
 
 # Save
 ggsave(
@@ -701,6 +803,7 @@ ggsave(
   height = 6
 )
 ```
+
 
 ## Join
 

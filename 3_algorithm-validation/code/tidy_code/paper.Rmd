@@ -210,6 +210,7 @@ original_theme <- theme_set(my_theme)
 ```{r setup_1}
 # Load packages
 library(cowplot)
+library(doParallel)
 library(doRNG)  # To set seed in multiple cores
 library(foreach)
 library(magrittr)
@@ -229,7 +230,11 @@ source("utils.R")
 Parallelize.
 
 ```{r}
+# Parallelize
 cl <- parallel::makeCluster(8L)
+doParallel::registerDoParallel(cl)
+
+# Packages to send to each core
 pkgs <- c("magrittr", "tidyverse")
 ```
 
@@ -327,6 +332,43 @@ out_data$data_eval_active %>%
 ```
 
 
+Active sharing in all research articles.
+
+```{r}
+# Set seed
+set.seed(1306)
+
+# Expected value
+expected_vals <- 
+  eval_no_boot(
+    type = "active_art", 
+    is_old = F, 
+    filters = filtering_vars[1],
+    pred_label = pred_label_vars[c(1, 4)]
+  ) %>% 
+  gather(metric, expected)
+
+# Run bootstrap
+df_any <- foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng%
+  eval_boot(
+    type = "active_art", 
+    is_old = F, 
+    filters = filtering_vars[1],
+    pred_label = pred_label_vars[c(1, 4)]
+  )
+
+# Summarize
+out_data$data_eval_active_art <- 
+  df_any %>% 
+  eval_summarize() %>% 
+  left_join(expected_vals)
+
+# Print
+out_data$data_eval_active_art %>% 
+  sable()
+```
+
+
 *** 
 
 
@@ -387,7 +429,7 @@ set.seed(1306)
 expected_vals <- 
   eval_no_boot(
     t_tr = true_code,
-    t_fs = bind_rows(df_true, df_false),
+    t_fs = bind_rows(df_true, df_false) %>% filter(!is_open_code),
     type = "active", 
     is_old = F, 
     filters = filtering_vars[0],
@@ -401,7 +443,7 @@ df_any <-
   foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng%
     eval_boot(
       t_tr = true_code,
-      t_fs = bind_rows(df_true, df_false),
+      t_fs = bind_rows(df_true, df_false) %>% filter(!is_open_code),
       type = "active", 
       is_old = F, 
       filters = filtering_vars[0],
@@ -417,6 +459,50 @@ out_code$code_eval_active <-
 
 # Print
 out_code$code_eval_active %>% 
+  sable()
+```
+
+
+Active sharing in any research article.
+
+```{r}
+# Set seed
+set.seed(1306)
+
+# Expected value
+expected_vals <- 
+  eval_no_boot(
+    t_tr = true_code,
+    t_fs = bind_rows(df_true, df_false) %>% filter(!is_open_code),
+    type = "active_art", 
+    is_old = F, 
+    filters = filtering_vars[1],
+    grouping_fs = grouping_vars_false[1],
+    pred_label = pred_label_vars[c(1, 4)]
+  ) %>% 
+  gather(metric, expected)
+
+# Run bootstrap
+df_any <- 
+  foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng%
+    eval_boot(
+      t_tr = true_code,
+      t_fs = bind_rows(df_true, df_false) %>% filter(!is_open_code),
+      type = "active_art", 
+      is_old = F, 
+      filters = filtering_vars[1],
+      grouping_fs = grouping_vars_false[1],
+      pred_label = pred_label_vars[c(1, 4)]
+    )
+
+# Summarize
+out_code$code_eval_active_art <- 
+  df_any %>% 
+  eval_summarize() %>% 
+  left_join(expected_vals)
+
+# Print
+out_code$code_eval_active_art %>% 
   sable()
 ```
 
@@ -467,7 +553,7 @@ pred_label_vars <- syms(c(
 
 ## Evaluate
 
-Any.
+Any article.
 
 ```{r}
 # Set seed
@@ -490,6 +576,33 @@ out_coi$coi_eval_any <-
   left_join(expected_vals)
 
 out_coi$coi_eval_any %>% 
+  sable()
+```
+
+
+Research articles.
+
+```{r}
+# Set seed
+set.seed(1306)
+
+# Expected value
+expected_vals <- 
+  eval_no_boot(type = "any_art", is_old = F, filters = filtering_vars[2]) %>% 
+  gather(metric, expected)
+
+# Run bootstrap
+df_any <- 
+  foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng% 
+    eval_boot(type = "any_art", is_old = F, filters = filtering_vars[2])
+
+# Summarize
+out_coi$coi_eval_any_art <- 
+  df_any %>% 
+  eval_summarize() %>% 
+  left_join(expected_vals)
+
+out_coi$coi_eval_any_art %>% 
   sable()
 ```
 
@@ -540,7 +653,7 @@ pred_label_vars <- syms(c(
 
 ## Evaluate
 
-Any.
+Any article.
 
 ```{r}
 # Set seed
@@ -564,6 +677,34 @@ out_fund$fund_eval_any <-
 
 # Print
 out_fund$fund_eval_any %>% 
+  sable()
+```
+
+
+Research articles.
+
+```{r}
+# Set seed
+set.seed(1306)
+
+# Expected value
+expected_vals <- 
+  eval_no_boot(type = "any_art", is_old = F, filters = filtering_vars[2]) %>% 
+  gather(metric, expected)
+
+# Run bootstrap
+df_any <- 
+  foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng% 
+    eval_boot(type = "any_art", is_old = F, filters = filtering_vars[2])
+
+# Summarize
+out_fund$fund_eval_any_art <- 
+  df_any %>% 
+  eval_summarize() %>% 
+  left_join(expected_vals)
+
+# Print
+out_fund$fund_eval_any_art %>% 
   sable()
 ```
 
@@ -615,7 +756,7 @@ pred_label_vars <- syms(c(
 
 ## Evaluate
 
-Any.
+Any article.
 
 ```{r}
 # Set seed
@@ -623,13 +764,13 @@ set.seed(1306)
 
 # Expected value
 expected_vals <- 
-  eval_no_boot() %>% 
+  eval_no_boot(type = "any") %>% 
   gather(metric, expected)
 
 # Run bootstrap
 df_any <- 
   foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng% 
-    eval_boot()
+    eval_boot(type = "any", filters = filtering_vars[0])
 
 # Summarize
 out_register$reg_eval_any <- 
@@ -639,6 +780,34 @@ out_register$reg_eval_any <-
 
 # Print
 out_register$reg_eval_any %>% 
+  sable()
+```
+
+
+Research articles.
+
+```{r}
+# Set seed
+set.seed(1306)
+
+# Expected value
+expected_vals <- 
+  eval_no_boot(type = "any_art", filters = filtering_vars[2]) %>% 
+  gather(metric, expected)
+
+# Run bootstrap
+df_any <- 
+  foreach(1:params$n, .combine = bind_rows, .packages = pkgs) %dorng% 
+    eval_boot(type = "any_art", filters = filtering_vars[2])
+
+# Summarize
+out_register$reg_eval_any_art <- 
+  df_any %>% 
+  eval_summarize() %>% 
+  left_join(expected_vals)
+
+# Print
+out_register$reg_eval_any_art %>% 
   sable()
 ```
 
@@ -662,8 +831,8 @@ eval_tables <- list(
   COI = out_coi$coi_eval_any,
   Funding = out_fund$fund_eval_any,
   Registration = out_register$reg_eval_any,
-  Data = out_data$data_eval_active,
-  Code = out_code$code_eval_active
+  Data = out_data$data_eval_active_art,
+  Code = out_code$code_eval_active_art
 ) 
 
 eval_metrics <- eval_tables %>% bind_rows(.id = "Indicator")
@@ -684,7 +853,8 @@ colfunc <- colorRampPalette(c("white", "red"))
 p1 <- 
   eval_metrics %>% 
   filter(!metric %in% unwanted_metrics) %>% 
-  mutate(vals = sprintf("%0.1f%% \n(%0.1f%%-%0.1f%%)", expected, lo, hi)) %>% 
+  mutate(vals = sprintf("%0.1f%% \n(%0.1f%%-%0.1f%%)", expected, lo, hi)) %>%
+  mutate(Indicator = fct_relevel(Indicator, "Data")) %>% 
   ggplot(aes(x = Indicator, y = metric, fill = expected, label = vals)) +
   geom_tile(aes(width = 0.99, height = 0.99)) +
   # scale_color_gradientn(colours = alpha(colfunc(10), 0.8)) +
@@ -727,6 +897,7 @@ p2 <-
   filter(metric %in% c("P_pred", "P_error", "P_true")) %>% 
   mutate(vals = sprintf("%0.1f%% \n(%0.1f%%-%0.1f%%)", expected, lo, hi)) %>% 
   mutate_at(vars(metric), recode, !!! p_names) %>% 
+  mutate(Indicator = fct_relevel(Indicator, "Data")) %>% 
   ggplot(aes(x = Indicator, y = metric, label = vals, fill = expected)) +
   geom_tile(aes(width = 0.99, height = 0.99)) +
   geom_text(size = 3) +

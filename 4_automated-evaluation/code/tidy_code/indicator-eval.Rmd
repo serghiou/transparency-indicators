@@ -467,6 +467,7 @@ dic <- c(
 Create table of prevalence correction.
 
 ```{r}
+# Any article
 performance_error <- list(
   is_data_pred = out_data$data_eval_active,
   is_code_pred = out_code$code_eval_active,
@@ -476,6 +477,22 @@ performance_error <- list(
 ) %>% 
   bind_rows(.id = "indicator") %>% 
   filter(metric %in% c("NPV", "PPV")) %>% 
+  mutate_at(vars(median:expected), magrittr::divide_by, 100) %>% 
+  mutate(value = if_else(metric == "PPV", "Yes", "No")) %>% 
+  gather(estimand, estimate, expected, lo, hi) %>% 
+  # pivot_wider(names_from = metric, values_from = median:hi) %>% 
+  mutate(indicator = recode(indicator, !!!dic))
+
+# Research articles
+performance_error_art <- list(
+  is_data_pred = out_data$data_eval_active_art,
+  is_code_pred = out_code$code_eval_active_art,
+  is_coi_pred  = out_coi$coi_eval_any_art,
+  is_fund_pred = out_fund$fund_eval_any_art,
+  is_register_pred = out_register$reg_eval_any_art
+) %>% 
+  bind_rows(.id = "indicator") %>% 
+  filter(metric %in% c("NPV", "PPV")) %>%
   mutate_at(vars(median:expected), magrittr::divide_by, 100) %>% 
   mutate(value = if_else(metric == "PPV", "Yes", "No")) %>% 
   gather(estimand, estimate, expected, lo, hi) %>% 
@@ -673,7 +690,7 @@ corrected <-
   group_by(key) %>% 
   count(value) %>% 
   mutate(N = sum(n)) %>% 
-  left_join(performance_error, by = c("key" = "indicator", "value")) %>% 
+  left_join(performance_error_art, by = c("key" = "indicator", "value")) %>% 
   mutate(true = n * estimate, false = n * (1 - estimate)) %>% 
   gather(true_false, counts, true:false) %>% 
   mutate(is_present = case_when(
@@ -1566,6 +1583,32 @@ field_text %>%
 
 # Print
 field_text %>% sable(full_width = T)
+```
+
+
+## Galaxies
+
+Number of articles between 2015-2019.
+
+```{r}
+pmcoa %>% 
+  drop_na(pmid) %>% 
+  filter(year >= 2015 & year <= 2019) %>%
+  nrow()
+```
+
+
+Number of articles per indicator.
+
+```{r}
+pmcoa %>% 
+  drop_na(pmid) %>% 
+  filter(year >= 2015 & year <= 2019) %>%
+  select(!!! indicator_vars) %>% 
+  rename(!!! indicator_vars_dic) %>% 
+  summarise_all(sum) %>% 
+  gather(Indicator, n) %>% 
+  sable()
 ```
 
 
