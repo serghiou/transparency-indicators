@@ -14,6 +14,6 @@ The repo is structured across 4 sub-sections in the order that they were done: t
 
 ### What should I do if I have a question, something is not working, etc?
 
-Feel free to open an
+Please do let us know if you have any questions and especially if you discover any bugs! You can do so by openning an Issue on GitHub or by sending an email to stelios.serghiou@gmail.com.
 
 </div>
