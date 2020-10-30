@@ -1,4 +1,4 @@
-# Machine-driven assessment of transparency across the biomedical literature: how open is open?
+# Assessment of transparency across the biomedical literature: how open is open?
 
 <div align='justify'>
   
