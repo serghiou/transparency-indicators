@@ -1,4 +1,4 @@
-# Assessment of transparency across the biomedical literature: how open is open?
+# Transparency across the biomedical literature: how open is open?
 
 <div align='justify'>
   
