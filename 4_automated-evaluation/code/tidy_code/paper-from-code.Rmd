@@ -479,13 +479,13 @@ p2 <-
 cowplot::plot_grid(
   p1, p2,
   nrow = 1, 
-  labels = "auto",
+  labels = "AUTO",
   rel_widths = c(2, 3),
   scale = 0.9
 )
 
 ggsave(
-  "../../output/figure_output/indicator-figs_fig-3_prevalence-by-year.jpg", 
+  "../../output/figure_output/paper-from-code_fig-3_prevalence-by-year.jpg", 
   height = 5, 
   width = 12
 )
@@ -555,7 +555,7 @@ country_n %>%
 
 # Save
 ggsave(
-  "../../output/figure_output/indicator-figs_fig-4_indicator-by-country.jpg", 
+  "../../output/figure_output/paper-from-code_fig-4_indicator-by-country.jpg", 
   height = 10, 
   width = 9
 )
@@ -586,12 +586,13 @@ field_table <-
 ```
 
 
-Plot.
+## Indicators by field
 
 ```{r}
 colfunc <- colorRampPalette(c("red", "yellow", "yellow", "green"))
 
-field_table %>% 
+p1 <- 
+  field_table %>% 
   mutate(field = fct_rev(field)) %>% 
   mutate(indicator = fct_relevel(indicator, "Data sharing")) %>% 
   ggplot(aes(x = indicator, y = field, fill = p, label = p_text)) +
@@ -611,10 +612,61 @@ field_table %>%
     axis.ticks = element_blank(),
     plot.margin = unit(c(0, 0, 0, 0), "cm")
   )
+```
+
+
+## Indicator totals
+
+```{r}
+# Create table
+field_totals <- 
+  field_table %>% 
+  group_by(field) %>% 
+  summarise(Total = sum(n)) %>% 
+  mutate(Total = scales::comma(Total))
+```
+
+```{r}
+# Plot
+p2 <- 
+  field_totals %>% 
+  gather(key, vals, Total) %>% 
+  mutate(field = fct_rev(field)) %>% 
+  ggplot(aes(x = key, y = field, fill = "constant", label = vals)) +
+  geom_tile(aes(width = 0.99, height = 0.99)) +
+  geom_text(size = 3) +
+  scale_x_discrete(position = "top", expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0)) +
+  scale_fill_manual(values = "grey") +
+  labs(x = NULL, y = NULL) +
+  theme(
+    axis.line = element_blank(),
+    axis.text.y = element_blank(),
+    legend.position = "none",
+    panel.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(size = 0.1, fill = NA),
+    axis.ticks = element_blank(),
+    plot.margin = unit(c(0, 0, 0, 0), "cm")
+  )
+```
+
+
+## Join
+
+```{r}
+cowplot::plot_grid(
+  p1, p2,
+  ncol = 2,
+  rel_heights = c(1, 1),
+  rel_widths = c(6, 1),
+  scale = 1
+)
 
 ggsave(
-  "../../output/figure_output/indicator-figs_fig-5_field-by-indicator.jpg",
-  width = 8, 
+  "../../output/figure_output/paper-from-code_fig-5_field-by-indicator.jpg",
+  width = 9, 
   height = 6
 )
 ```
@@ -721,13 +773,13 @@ Table - since 1990, ≥100 publications.
 cowplot::plot_grid(
   p1, p2,
   nrow = 2, 
-  labels = "auto",
+  labels = "AUTO",
   rel_heights = c(1, 1),
   scale = 0.9
 )
 
 ggsave(
-  "../../output/figure_output/indicator-figs_fig-6_by-journal-publisher.jpg", 
+  "../../output/figure_output/paper-from-code_fig-6_by-journal-publisher.jpg", 
   width = 10,
   height = 12
 )
