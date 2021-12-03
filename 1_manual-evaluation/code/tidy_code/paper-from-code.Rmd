@@ -209,32 +209,15 @@ library(magrittr)
 library(readxl)
 library(tidyverse)
 
-
 # Paths
 fig_output <- "../../output/figure_output"
 
-
 # Import data
 articles <- read_csv("../../data/tidy_data/manual-indicators.csv")
-altmetric <- read_csv("../../data/external_data/altmetric-data.csv")
-impact <- read_csv("../../data/external_data/impact-factor.csv")
-pubmed <- read_xlsx("../../data/external_data/pubmed-info.xlsx", na = "NA")
-fields <- read_xlsx("../../data/external_data/stelios_pmid_info.xlsx", 1)
-cites <- read_xlsx("../../data/external_data/stelios_pmid_info.xlsx", 3)
 ```
 
 ```{r}
 # Define variable groups
-indicator_vars <- syms(c(
-  "hasDataNoteFT",
-  "hasCode",
-  "hasConflictFT",
-  "FundingType",
-  "hasProtocolFT",
-  "isNovel",
-  "isReplication"
-))
-
 indicator_vars_binary <- syms(c(
   "Data",
   "Code",
@@ -254,15 +237,6 @@ indicator_vars_names <- c(
   "Novelty",
   "Replication"
 )
-
-indicator_vars_pubmed <- syms(c(
-  "hasDataNoteAbstract",
-  "hasCodeAbstract",
-  "hasConflictPubMed",
-  "hasFundingPubMed",
-  "hasProtRegInfoAbstractPub",
-  "isReplicationNoveltyAbstract"
-))
 
 indicator_vars_dic <- c(
   hasDataNoteFT = "Data sharing",
@@ -286,79 +260,6 @@ indicator_vars_dic <- c(
   isReplicationNoveltyAbstract = "Novelty or Replication (PubMed)"
 )
 
-indicators_simplified_dic <- c(
-  hasDataNoteFT = "Data sharing",
-  hasDataNoteAbstract = "Data sharing",
-  hasCode = "Code sharing",
-  hasCodeAbstract = "Code sharing",
-  hasConflictFT = "COI disclosure",
-  hasConflictPubMed = "COI disclosure",
-  FundingType = "Funding disclosure",
-  hasFundingPubMed = "Funding disclosure",
-  hasProtocolFT = "Protocol registration",
-  hasProtRegInfoAbstractPub = "Protocol registration",
-  isNovel  = "Novel or Replication",
-  isReplication = "Novel or Replication",
-  isReplicationNovelty = "Novel or Replication",
-  isReplicationNoveltyAbstract = "Novel or Replication"
-)
-
-
-factor_vars <- syms(c(
-  "isBench",
-  "isEpi",
-  "isOther",
-  "isRCT",
-  "Year",
-  "is_PMC",
-  "field"
-))
-
-factor_vars_dic <- c(
-  field = "Field of Science (SciTech)",
-  is_PMC = "On PMC",
-  isBench = "Basic sciences",
-  isEpi = "Health sciences",
-  isOther = "Research article",
-  isRCT = "Clinical Trial"
-)
-
-
-num_vars <- syms(c(
-  "aas_score",
-  "n_cites",
-  "jif",
-  "eigenfactor_score",
-  "n_authors",
-  "n_affiliations",
-  "n_mesh"
-))
-
-num_vars_dic <- c(
-  aas_score = "Altmetric Attention Score", 
-  n_cites = "Citation count (OCC)", 
-  eigenfactor_score = "Eigenfactor (WOS)",
-  jif = "Journal Impact Factor (JIF)",
-  n_affiliations = "Number of affiliations",
-  n_authors = "Number of authors",
-  n_mesh = "Number of MeSH terms"
-)
-
-
-coi_dic <- c(
-  `0` = "No", 
-  `1` = "Yes (conflicts)", 
-  `2` = "Yes (no conflicts)"
-)
-
-coi_binary_dic <- c(
-  `0` = "No", 
-  `1` = "Yes", 
-  `2` = "Yes",
-  `99` = "N/A"
-)
-
-
 fund_dic <- c(
   `0` = "No", 
   `1` = "No funding",
@@ -369,50 +270,17 @@ fund_dic <- c(
   `6` = "Public + NGO", 
   `7` = "NGO + Private", 
   `8` = "Public + Private + NGO")
-
-fund_binary_dic <- c(
-  `0` = "No", 
-  `1` = "Yes", 
-  `2` = "Yes", 
-  `3` = "Yes", 
-  `4` = "Yes", 
-  `5` = "Yes", 
-  `6` = "Yes", 
-  `7` = "Yes", 
-  `8` = "Yes"
-)
 ```
 
 
 ***
 
 
-# Introduction
-
-## Inputs
-
-* Citation data - CrossRef  - 30 May, 2019
-* Altmetric data - Altmetric - 30 May, 2019
-* Impact factor data - Web of Science - 2019 JIF
-
-
-***
-
-
-# Prepare data
+# Articles dataset
 
 ```{r}
 glimpse(articles)
-glimpse(altmetric)
-glimpse(cites)
-glimpse(impact)
-glimpse(pubmed)
 ```
-
-
-## Articles
-
-Change articles before meta, because meta is created on the basis of articles.
 
 Change protocol to align with our own definition of protocol.
 
@@ -427,7 +295,6 @@ articles %<>%
   select(-has_suppl_note)
 ```
 
-
 Convert `isResearch` into logical.
 
 ```{r}
@@ -435,7 +302,6 @@ articles %<>%
   mutate(isResearch = isResearch == "Yes") %>% 
   mutate(isEnglish = isEnglish == "Yes")
 ```
-
 
 Create indicators for articles.
 
@@ -449,123 +315,6 @@ articles %<>%
     Protocol = hasProtocolFT != 0,
     Novel = isNovel != 0,
     Replication = isReplication != 0
-  )
-```
-
-
-
-## Meta
-
-Retain only articles from which indicators were extracted and remove country because this is misleading (this is the country of the publisher).
-
-```{r pubmed}
-pubmed %<>% 
-  slice(1:520) %>% 
-  select(-Country, -Year) %>% 
-  rename(Journal_abbrv = Journal)
-```
-
-
-Merge with information provided by other services.
-
-```{r altmetric}
-meta <- 
-  altmetric %>% 
-  select(
-    pmid, 
-    type, 
-    is_oa, 
-    aas_score = score,
-    starts_with("cited_by_"), 
-    starts_with("subjects"), 
-    starts_with("scopus_subjects")
-  ) %>% 
-  unite(col = "subjects", starts_with("subjects"), sep = "; ", na.rm = T) %>% 
-  unite(col = "subjects_scopus", starts_with("sco"), sep = "; ", na.rm = T) %>%
-  mutate_at(vars(subjects, subjects_scopus), na_if, "") %>% 
-  mutate_at(vars(pmid), as.character) %>% 
-  right_join(pubmed, by = c("pmid" = "PMID")) %>% 
-  mutate(aas_score = replace_na(aas_score, 0)) %>% 
-  select(Sample_ID, pmid, Title:n_citation, everything())
-```
-
-```{r cites}
-cites %<>% count(pmid, name = "n_cites")
-
-meta <- 
-  cites %>%
-  mutate(pmid = as.character(pmid)) %>% 
-  select(pmid, n_cites) %>% 
-  right_join(meta) %>% 
-  select(-n_cites, n_cites)
-```
-
-```{r}
-meta <- 
-  fields %>% 
-  rename(field = pm_field) %>% 
-  mutate(pmid = as.character(pmid)) %>% 
-  right_join(meta) %>% 
-  select(-field, field)
-```
-
-
-```{r jif}
-meta <- 
-  impact %>% 
-  select(starts_with("ISSN"), jif, eigenfactor_score) %>% 
-  gather("ISSN_type", "ISSN", starts_with("ISSN")) %>% 
-  distinct(jif, eigenfactor_score, ISSN) %>% 
-  right_join(meta, ) %>% 
-  select(-(jif:ISSN), everything(), ISSN, jif, eigenfactor_score)
-```
-
-Ten of the journals with no JIF match were manually inspected to confirm that no journal with a similar title existed in Web of Science (in addition to previous manual searches in compiling the initial database). All 10 did not exist.
-
-```{r articles}
-meta <- 
-  articles %>% 
-  mutate_at(vars(Sample_ID), as.numeric) %>% 
-  mutate(hasCodeAbstract = "No") %>% 
-  select(
-    Sample_ID, 
-    PMCID, 
-    Year:isCostEffect, 
-    isEnglish, 
-    isResearch,
-    !!! indicator_vars,
-    !!!indicator_vars_pubmed
-  ) %>% 
-  right_join(meta, by = "Sample_ID")
-```
-
-
-Create indicators.
-
-```{r}
-meta %<>% 
-  mutate(
-    COI = hasConflictFT != 0,
-    Funding = FundingType != 0,
-    Data = hasDataNoteFT != 0,
-    Code = hasCode != 0,
-    Protocol = hasProtocolFT != 0,
-    Novel = isNovel != 0,
-    Replication = isReplication != 0
-  )
-```
-
-
-Create features.
-
-```{r}
-meta %<>% 
-  mutate(
-    is_PMC = !is.na(PMCID),
-    n_authors = str_count(Author, ","),
-    n_affiliations = str_count(Affiliation, ";"),
-    n_mesh = str_count(MeSH, ";"),
-    open_score = Funding + COI + Data + Protocol + Code
   )
 ```
 
@@ -614,7 +363,6 @@ articles %>%
   labs(x = NULL, y = "Number of articles\n")
 ```
 
-
 Research articles.
 
 ```{r}
@@ -655,7 +403,6 @@ ggsave(
   height = 6
 )
 ```
-
 
 Research articles - single column per indicator.
 
@@ -748,7 +495,6 @@ tbl %>%
   )
 ```
 
-
 Centered moving average across 4-year intervals across research articles.
 
 ```{r}
@@ -799,7 +545,7 @@ p2 <-
 ggsave(
   filename = file.path(fig_output, "paper_fig-1b_indicator-over-time.jpg"),
   plot = p2,
-  width = 8, 
+  width = 8,
   height = 6
 )
 ```
@@ -877,7 +623,7 @@ tbl %>%
 # Save
 ggsave(
   filename = file.path(fig_output, "paper_extended-fig-1_sharing-type.jpg"),
-  width = 10, 
+  width = 10,
   height = 4
 )
 ```
