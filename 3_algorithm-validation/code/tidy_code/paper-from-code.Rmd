@@ -928,7 +928,7 @@ cowplot::plot_grid(p1, p2, nrow = 2, align = "v", rel_heights = c(2, 1))
 
 # Save
 ggsave(
-  file.path(figure_output, "paper_fig-2_algorithm-evaluation.jpg"), 
+  file.path(figure_output, "paper_fig-2_algorithm-evaluation.jpg"),
   width = 7
 )
 ```
